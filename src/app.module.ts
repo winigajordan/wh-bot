@@ -2,8 +2,17 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ClaudeModule } from './claude/claude.module';
 import configuration from './config/configuration';
+import { ConversationModule } from './conversation/conversation.module';
+import { DashboardApiModule } from './dashboard-api/dashboard-api.module';
+import { DatabaseModule } from './database/database.module';
+import { MenuModule } from './menu/menu.module';
+import { OrdersModule } from './orders/orders.module';
 import { RedisModule } from './redis/redis.module';
+import { RestaurantsModule } from './restaurants/restaurants.module';
+import { WebhookModule } from './webhook/webhook.module';
+import { WhatsappClientModule } from './whatsapp-client/whatsapp-client.module';
 
 @Module({
   imports: [
@@ -13,6 +22,15 @@ import { RedisModule } from './redis/redis.module';
       load: [configuration],
     }),
     RedisModule,
+    DatabaseModule,
+    RestaurantsModule,
+    MenuModule,
+    ConversationModule,
+    OrdersModule,
+    WebhookModule,
+    ClaudeModule,
+    WhatsappClientModule,
+    DashboardApiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
