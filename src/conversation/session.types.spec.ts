@@ -1,0 +1,32 @@
+import {
+  CLAUDE_MESSAGE_WINDOW,
+  sliceMessagesForClaude,
+  SessionMessage,
+} from './session.types';
+
+describe('sliceMessagesForClaude', () => {
+  it('garde les N derniers messages', () => {
+    const messages: SessionMessage[] = Array.from({ length: 25 }, (_, i) => ({
+      role: i % 2 === 0 ? 'user' : 'assistant',
+      content: `m${i}`,
+    }));
+
+    const sliced = sliceMessagesForClaude(messages);
+
+    expect(sliced).toHaveLength(CLAUDE_MESSAGE_WINDOW);
+    expect(sliced[0].content).toBe('m5');
+    expect(sliced.at(-1)?.content).toBe('m24');
+  });
+
+  it('ne commence pas par un message assistant', () => {
+    const messages: SessionMessage[] = [
+      { role: 'user', content: 'a' },
+      { role: 'assistant', content: 'b' },
+      { role: 'user', content: 'c' },
+    ];
+
+    expect(sliceMessagesForClaude(messages, 2)).toEqual([
+      { role: 'user', content: 'c' },
+    ]);
+  });
+});

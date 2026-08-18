@@ -9,6 +9,190 @@ Format d’un bloc :
 
 ##########
 
+## Ton WhatsApp — entre-deux (serveur sympa)
+
+Date : 18 août 2026, 04:21
+
+### Objectif
+
+Recalibrer le prompt après le réglage trop froid : chaleureux, sans commercial.
+
+### Comportement
+
+- Ton « serveur WhatsApp sympa », pas robot ni marketing
+- Emoji occasionnel OK, jamais systématique
+- Pas de markdown
+- Formulations variées, un peu d’empathie, pas « Bonne question ! »
+- Redirection contact : expliquer pourquoi + excuse légère, pas juste le numéro
+
+### Fichiers
+
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.spec.ts`
+
+##########
+
+## Ton WhatsApp — prompt resto (anti chatbot marketing)
+
+Date : 18 août 2026, 04:17
+
+### Objectif
+
+Corriger le system prompt resto : réponses comme une personne sur WhatsApp, pas un bot marketing.
+
+### Comportement
+
+`buildSystemPrompt` impose maintenant :
+- pas d’emoji (sauf si le client en met, max 1)
+- pas de markdown / gras
+- pas d’ouverture creuse (« Bonne question ! », etc.)
+- phrases courtes, peu ou pas de `!`
+- info manquante : le dire brièvement, orienter vers `contactPhone` s’il existe
+
+Le texte « cette fonctionnalité arrive bientôt » a été retiré (trop commercial).
+
+### Fichiers
+
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.spec.ts`
+
+### Non fait
+
+- Pas d’autre changement (orchestrateur, Claude, webhook)
+
+##########
+
+## Orchestrateur conversation (remplace l’ack)
+
+Date : 18 août 2026, 04:04
+
+### Objectif
+
+update2 : après lookup business, `handleIncomingMessage` orchestre session → registre → Claude → Send API. Plus d’ack `Message reçu — {name}`.
+
+### Comportement
+
+- `ConversationOrchestratorService.handleIncomingMessage(business, from, text)`
+  1. `appendUserMessage`
+  2. `getSession`
+  3. `moduleRegistry.resolve(business.module.key)`
+  4. `buildSystemPrompt(business)`
+  5. `claude.generateReply(systemPrompt, session.messages)` (pas de tools)
+  6. `appendAssistantMessage` si réponse non vide
+- Webhook envoie le texte Claude via Send API
+- Erreur orchestrateur → log, Meta reçoit quand même `200`
+
+### Fichiers
+
+- `src/conversation/conversation-session.service.ts` — `getSession`, `appendAssistantMessage`
+- `src/conversation/conversation-orchestrator.service.ts`
+- `src/conversation/conversation-orchestrator.service.spec.ts`
+- `src/conversation/conversation.module.ts` — importe `ClaudeModule`, exporte l’orchestrateur
+- `src/webhook/webhook.controller.ts` — plus d’ack fixe
+- `src/webhook/webhook.controller.spec.ts`
+
+### Non fait (volontaire)
+
+- Fenêtre glissante
+- Persist Postgres `conversations` / `messages`
+- Tools resto
+
+##########
+
+## ModuleRegistryService.resolve
+
+Date : 18 août 2026, 04:01
+
+### Objectif
+
+update2 : résoudre `modules.key` → `ModuleDefinition` sans que `conversation/` ou `claude/` importent le resto.
+
+### Comportement
+
+- `resolve('restaurant_ordering')` → `restaurantOrderingModuleDefinition`
+- key inconnu → `Error('Module inconnu: …')`
+- Carte `MODULE_REGISTRY` inchangée (une entrée pour l’instant)
+
+### Fichiers
+
+- `src/module-registry/module-registry.constants.ts` — `MODULE_REGISTRY_TOKEN`
+- `src/module-registry/module-registry.service.ts`
+- `src/module-registry/module-registry.service.spec.ts` — 2 tests
+- `src/module-registry/module-registry.module.ts` — fournit et exporte le service
+
+### Non fait (volontaire)
+
+- Orchestrateur conversation
+- Remplacement de l’ack WhatsApp
+- Deuxième module métier
+
+##########
+
+## Prompt resto Phase 2 (`buildSystemPrompt`)
+
+Date : 18 août 2026, 03:59
+
+### Objectif
+
+update2 : le system prompt métier vit dans `restaurant-ordering/`, pas dans `claude/`.
+
+### Comportement
+
+`restaurantOrderingModuleDefinition.buildSystemPrompt(business)` produit un prompt qui :
+- se présente comme l’assistant WhatsApp de `{business.name}`
+- injecte adresse / contact s’ils existent
+- ton chaleureux, court, FR (s’adapter au wolof)
+- **pas encore** de menu ni de commande → dire poliment que ça arrive bientôt
+- `getTools()` reste `[]`
+
+### Fichiers
+
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.spec.ts` — 3 tests
+
+### Non fait (volontaire)
+
+- `ModuleRegistryService.resolve`
+- Orchestrateur / remplacement de l’ack WhatsApp
+- Tools (Phase 4)
+
+##########
+
+## ClaudeService générique (`generateReply`)
+
+Date : 18 août 2026, 03:54
+
+### Objectif
+
+Phase 2 update2 : client Anthropic réutilisable, sans aucun texte métier resto.
+
+### Comportement
+
+- Config : `anthropic.apiKey` (`ANTHROPIC_API_KEY`), `anthropic.model` (défaut `claude-sonnet-4-6`)
+- `ClaudeService.generateReply(systemPrompt, messages, tools?)` → `messages.create`
+- `tools` omis si absent ou vide
+- Réponse = concaténation des blocs `type === 'text'`
+- Clé absente → throw `ANTHROPIC_API_KEY manquante`
+- **Pas branché** au webhook : l’ack `Message reçu — {name}` reste en place
+
+### Fichiers
+
+- `src/config/configuration.ts` — bloc `anthropic`
+- `.env.example` — `ANTHROPIC_API_KEY=`
+- `src/claude/claude.service.ts`
+- `src/claude/claude.service.spec.ts` — 2 tests (mock SDK)
+- `src/claude/claude.module.ts` — exporte `ClaudeService`
+- `package.json` — `@anthropic-ai/sdk` (`--legacy-peer-deps`)
+
+### Non fait (volontaire)
+
+- Prompt resto Phase 2
+- `ModuleRegistryService`
+- Orchestrateur / remplacement de l’ack
+- `appendAssistantMessage`
+
+##########
+
 ## Send API — ack `Message reçu — {business.name}`
 
 Date : 18 août 2026

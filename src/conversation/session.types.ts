@@ -28,11 +28,26 @@ export type ConversationSession = {
 
 export const SESSION_TTL_SECONDS = 30 * 60;
 
+/** Nombre max de messages (user + assistant) envoyés à Claude. Redis garde tout le TTL. */
+export const CLAUDE_MESSAGE_WINDOW = 20;
+
 export function buildSessionKey(
   businessId: string,
   clientPhone: string,
 ): string {
   return `session:${businessId}:${clientPhone}`;
+}
+
+export function sliceMessagesForClaude(
+  messages: SessionMessage[],
+  windowSize = CLAUDE_MESSAGE_WINDOW,
+): SessionMessage[] {
+  const sliced = messages.slice(-windowSize);
+  const firstUserIndex = sliced.findIndex((message) => message.role === 'user');
+  if (firstUserIndex <= 0) {
+    return sliced;
+  }
+  return sliced.slice(firstUserIndex);
 }
 
 export function createEmptySession(

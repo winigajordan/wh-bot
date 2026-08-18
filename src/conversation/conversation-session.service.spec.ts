@@ -75,4 +75,30 @@ describe('ConversationSessionService', () => {
       SESSION_TTL_SECONDS,
     );
   });
+
+  it('append un message assistant', async () => {
+    getSession.mockResolvedValue({
+      messages: [{ role: 'user', content: 'Salut' }],
+      cart: [],
+      delivery_info: null,
+      last_activity: '2026-01-01T00:00:00.000Z',
+    });
+
+    await service.appendAssistantMessage(
+      'biz-1',
+      '221779876543',
+      'Je vous écoute.',
+    );
+
+    expect(setSession).toHaveBeenCalledWith(
+      'session:biz-1:221779876543',
+      expect.objectContaining({
+        messages: [
+          { role: 'user', content: 'Salut' },
+          { role: 'assistant', content: 'Je vous écoute.' },
+        ],
+      }),
+      SESSION_TTL_SECONDS,
+    );
+  });
 });

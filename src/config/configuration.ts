@@ -18,4 +18,8 @@ export default () => ({
     appSecret: process.env.WHATSAPP_APP_SECRET || '',
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN || '',
   },
+  anthropic: {
+    apiKey: process.env.ANTHROPIC_API_KEY || '',
+    model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+  },
 });

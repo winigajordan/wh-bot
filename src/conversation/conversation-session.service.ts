@@ -13,15 +13,40 @@ export class ConversationSessionService {
 
   constructor(private readonly redis: RedisService) {}
 
+  async getSession(
+    businessId: string,
+    clientPhone: string,
+  ): Promise<ConversationSession> {
+    const key = buildSessionKey(businessId, clientPhone);
+    return this.parseSession(await this.redis.getSession(key));
+  }
+
   async appendUserMessage(
     businessId: string,
     clientPhone: string,
     content: string,
   ): Promise<ConversationSession> {
+    return this.appendMessage(businessId, clientPhone, 'user', content);
+  }
+
+  async appendAssistantMessage(
+    businessId: string,
+    clientPhone: string,
+    content: string,
+  ): Promise<ConversationSession> {
+    return this.appendMessage(businessId, clientPhone, 'assistant', content);
+  }
+
+  private async appendMessage(
+    businessId: string,
+    clientPhone: string,
+    role: 'user' | 'assistant',
+    content: string,
+  ): Promise<ConversationSession> {
     const key = buildSessionKey(businessId, clientPhone);
     const session = this.parseSession(await this.redis.getSession(key));
 
-    session.messages.push({ role: 'user', content });
+    session.messages.push({ role, content });
     session.last_activity = new Date().toISOString();
 
     this.logger.log(

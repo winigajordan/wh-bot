@@ -30,12 +30,12 @@ Pour le POC, seul le module **prise de commande resto** existe. Le code est déj
 | Pièce | État |
 | --- | --- |
 | NestJS | OK, `npm run start:dev` |
-| Config | `app` / `redis` / `database` / `whatsapp` via `.env` |
+| Config | `app` / `redis` / `database` / `whatsapp` / `anthropic` via `.env` |
 | Redis | `REDIS_URL` → `localhost:6379`. Un Redis **Homebrew** occupe déjà ce port (Darwin) : Nest y écrit. Le container Docker `redis:7-alpine` tourne aussi mais `docker compose exec redis redis-cli` ne voit pas ces clés. |
 | Postgres | Local, base `whatsapp_bot` |
 | TypeORM | Connexion + ping au boot |
 | Migrations | Versionnées, déjà appliquées |
-| Webhook | Phase 1 complète : GET + POST HMAC + parse + lookup + session Redis + Send API ack. |
+| Webhook | Phase 1 + orchestrateur Claude : WhatsApp → registry → Claude → Send API. Ack fixe retiré. |
 
 **Redis** = mémoire courte (panier, historique récent, TTL 30 min).  
 **Postgres** = mémoire longue (business, menu validé, commandes, historique complet).
@@ -286,11 +286,13 @@ src/
   conversation/           Conversation, Message (générique)
   restaurant-ordering/    MenuItem, DeliveryZone, Order, OrderStatusHistory
   module-registry/        quel prompt/tools selon modules.key
-  webhook / claude / whatsapp-client / dashboard-api   (encore vides)
+  webhook / whatsapp-client   (phase 1)
+  claude/                     generateReply générique (pas branché au webhook)
+  dashboard-api               (encore vide)
 ```
 
 ---
 
 ## Prochaine étape
 
-**Phase 2 — suite :** client Anthropic + pipeline `conversation` (WhatsApp → Claude → WhatsApp).
+**Phase 2 — suite :** fenêtre glissante des N derniers messages, puis persist Postgres `conversations` / `messages`.

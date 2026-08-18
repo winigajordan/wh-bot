@@ -15,11 +15,8 @@ import { ConfigService } from '@nestjs/config';
 import { timingSafeEqual } from 'crypto';
 import type { Request } from 'express';
 import { BusinessesService } from '../businesses/businesses.service';
-import { ConversationSessionService } from '../conversation/conversation-session.service';
-import {
-  buildReceivedAckMessage,
-  WhatsappClientService,
-} from '../whatsapp-client/whatsapp-client.service';
+import { ConversationOrchestratorService } from '../conversation/conversation-orchestrator.service';
+import { WhatsappClientService } from '../whatsapp-client/whatsapp-client.service';
 import { parseIncomingTextMessages } from './parse-whatsapp-webhook.util';
 import { verifyWebhookSignature } from './webhook-signature.util';
 
@@ -39,7 +36,7 @@ export class WebhookController {
   constructor(
     private readonly config: ConfigService,
     private readonly businessesService: BusinessesService,
-    private readonly conversationSessionService: ConversationSessionService,
+    private readonly conversationOrchestrator: ConversationOrchestratorService,
     private readonly whatsappClient: WhatsappClientService,
   ) {}
 
@@ -99,17 +96,27 @@ export class WebhookController {
         continue;
       }
 
-      await this.conversationSessionService.appendUserMessage(
-        business.id,
-        message.from,
-        message.text,
-      );
+      try {
+        const reply = await this.conversationOrchestrator.handleIncomingMessage(
+          business,
+          message.from,
+          message.text,
+        );
 
-      await this.whatsappClient.sendTextMessage(
-        message.phoneNumberId,
-        message.from,
-        buildReceivedAckMessage(business.name),
-      );
+        if (reply) {
+          await this.whatsappClient.sendTextMessage(
+            message.phoneNumberId,
+            message.from,
+            reply,
+          );
+        }
+      } catch (error) {
+        const errMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Orchestrateur échoué pour ${business.id} : ${errMessage}`,
+        );
+      }
 
       this.logger.log(
         `Message ${message.messageId} de ${message.from} → business ${business.name} (${business.id})`,

@@ -52,26 +52,16 @@ Dernière mise à jour : 18 août 2026.
 
 - [ ] `WHATSAPP_ACCESS_TOKEN` : System User au niveau du **Business Portfolio**, pas d’un WABA unique (accès aux deux WABA)
 
-### Prochaine étape — Phase 1 (bloquante)
+### Phase 1 (terminée)
 
-Webhook WhatsApp + routing `phone_number_id` → `business` + sessions Redis.
+Webhook WhatsApp + routing `phone_number_id` → `business` + sessions Redis + Send API ack.
 
-- [x] Variables Meta : `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_ACCESS_TOKEN`
-- [x] `GET /webhooks/whatsapp` — challenge Meta
-- [x] `POST /webhooks/whatsapp` — HMAC `X-Hub-Signature-256`
-- [x] Parser : `phone_number_id`, `from`, contenu texte
-- [x] Routing : `phone_number_id` → `business_id`
-- [x] Seed de 2 businesses test (`restaurant_ordering`) — placeholders à remplacer par les vrais IDs Meta
-- [x] Session Redis `session:{business_id}:{client_phone}` (TTL 30 min)
-- [x] Wrapper Send API (envoi texte) — ack `Message reçu — {business.name}`
+### Phase 2 (en cours) — Pipeline Claude (update2)
 
-Le webhook résout le business ; `conversation` résoudra plus tard `module.key` → `MODULE_REGISTRY`.
-
-### Phase 2 — Pipeline Claude (générique) + prompt/tools resto
-
-- [ ] Client Anthropic `claude-sonnet-4-6`
-- [ ] `conversation` orchestre sans logique resto
-- [ ] `restaurant-ordering` fournit prompt + tools via `ModuleDefinition`
+- [x] `ANTHROPIC_API_KEY` + `ClaudeService.generateReply` générique (`claude-sonnet-4-6`)
+- [x] `restaurant-ordering` : prompt Phase 2 (menu/commande pas encore dispo)
+- [x] `ModuleRegistryService.resolve`
+- [x] Orchestrateur `conversation` (remplace l’ack fixe)
 - [ ] Fenêtre glissante + persist `conversations` / `messages`
 - [ ] Bout-en-bout WhatsApp → Claude → WhatsApp
 
