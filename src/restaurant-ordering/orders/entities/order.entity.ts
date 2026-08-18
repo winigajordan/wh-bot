@@ -6,8 +6,8 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { DeliveryZone } from '../../restaurants/entities/delivery-zone.entity';
-import { Restaurant } from '../../restaurants/entities/restaurant.entity';
+import { Business } from '../../../businesses/entities/business.entity';
+import { DeliveryZone } from '../../delivery-zones/entities/delivery-zone.entity';
 
 export type DeliveryMode = 'delivery' | 'pickup';
 export type OrderStatus = 'received' | 'preparing' | 'ready' | 'completed';
@@ -17,12 +17,12 @@ export class Order {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'restaurant_id', type: 'uuid' })
-  restaurantId!: string;
+  @Column({ name: 'business_id', type: 'uuid' })
+  businessId!: string;
 
-  @ManyToOne(() => Restaurant)
-  @JoinColumn({ name: 'restaurant_id' })
-  restaurant!: Restaurant;
+  @ManyToOne(() => Business)
+  @JoinColumn({ name: 'business_id' })
+  business!: Business;
 
   @Column({ name: 'client_phone' })
   clientPhone!: string;

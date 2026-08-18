@@ -5,19 +5,19 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Restaurant } from './restaurant.entity';
+import { Business } from '../../../businesses/entities/business.entity';
 
 @Entity('delivery_zones')
 export class DeliveryZone {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'restaurant_id', type: 'uuid' })
-  restaurantId!: string;
+  @Column({ name: 'business_id', type: 'uuid' })
+  businessId!: string;
 
-  @ManyToOne(() => Restaurant)
-  @JoinColumn({ name: 'restaurant_id' })
-  restaurant!: Restaurant;
+  @ManyToOne(() => Business)
+  @JoinColumn({ name: 'business_id' })
+  business!: Business;
 
   @Column({ name: 'zone_name' })
   zoneName!: string;

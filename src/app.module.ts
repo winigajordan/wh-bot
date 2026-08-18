@@ -2,15 +2,15 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { BusinessesModule } from './businesses/businesses.module';
 import { ClaudeModule } from './claude/claude.module';
 import configuration from './config/configuration';
 import { ConversationModule } from './conversation/conversation.module';
 import { DashboardApiModule } from './dashboard-api/dashboard-api.module';
 import { DatabaseModule } from './database/database.module';
-import { MenuModule } from './menu/menu.module';
-import { OrdersModule } from './orders/orders.module';
+import { ModuleRegistryModule } from './module-registry/module-registry.module';
 import { RedisModule } from './redis/redis.module';
-import { RestaurantsModule } from './restaurants/restaurants.module';
+import { RestaurantOrderingModule } from './restaurant-ordering/restaurant-ordering.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { WhatsappClientModule } from './whatsapp-client/whatsapp-client.module';
 
@@ -23,10 +23,10 @@ import { WhatsappClientModule } from './whatsapp-client/whatsapp-client.module';
     }),
     RedisModule,
     DatabaseModule,
-    RestaurantsModule,
-    MenuModule,
+    BusinessesModule,
+    ModuleRegistryModule,
+    RestaurantOrderingModule,
     ConversationModule,
-    OrdersModule,
     WebhookModule,
     ClaudeModule,
     WhatsappClientModule,

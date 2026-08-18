@@ -7,19 +7,19 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Restaurant } from '../../restaurants/entities/restaurant.entity';
+import { Business } from '../../../businesses/entities/business.entity';
 
 @Entity('menu_items')
 export class MenuItem {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'restaurant_id', type: 'uuid' })
-  restaurantId!: string;
+  @Column({ name: 'business_id', type: 'uuid' })
+  businessId!: string;
 
-  @ManyToOne(() => Restaurant)
-  @JoinColumn({ name: 'restaurant_id' })
-  restaurant!: Restaurant;
+  @ManyToOne(() => Business)
+  @JoinColumn({ name: 'business_id' })
+  business!: Business;
 
   @Column()
   category!: string;

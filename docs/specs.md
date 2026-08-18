@@ -1,5 +1,7 @@
 # Bot WhatsApp Resto — Specs Techniques (MVP/POC)
 
+> Amendé par [update1.md](./update1.md) : `restaurants` → `businesses`, `restaurant_id` → `business_id`. Module métier actuel : `restaurant_ordering`. L’auth login est reportée.
+
 > Document de contexte projet à fournir à un agent de codage (Cursor) pour générer/développer le projet de façon cohérente avec l'architecture définie.
 
 ## 1. Vue d'ensemble
