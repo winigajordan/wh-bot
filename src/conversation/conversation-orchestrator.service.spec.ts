@@ -78,4 +78,19 @@ describe('ConversationOrchestratorService', () => {
       'Bonjour, je vous écoute.',
     );
   });
+
+  it('n’envoie à Claude que la fenêtre glissante', async () => {
+    const messages = Array.from({ length: 24 }, (_, i) => ({
+      role: i % 2 === 0 ? 'user' : 'assistant',
+      content: `m${i}`,
+    }));
+    getSession.mockResolvedValue({ messages });
+
+    await service.handleIncomingMessage(business, '221779876543', 'Salut');
+
+    const sent = generateReply.mock.calls[0][1] as { content: string }[];
+    expect(sent).toHaveLength(20);
+    expect(sent[0].content).toBe('m4');
+    expect(sent.at(-1)?.content).toBe('m23');
+  });
 });

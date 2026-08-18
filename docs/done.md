@@ -9,6 +9,35 @@ Format d’un bloc :
 
 ##########
 
+## Fenêtre glissante Claude (20 messages)
+
+Date : 18 août 2026, 04:28
+
+### Objectif
+
+Specs §6 : n’envoyer à Claude que les N derniers échanges, pas tout Redis.
+
+### Comportement
+
+- `CLAUDE_MESSAGE_WINDOW = 20`
+- `sliceMessagesForClaude` : `messages.slice(-20)`, puis on drop les `assistant` en tête (Claude veut commencer par `user`)
+- Redis **garde** tout le TTL ; seule l’entrée `generateReply` est tronquée
+- Log : `messages={fenêtre}/{total session}`
+
+### Fichiers
+
+- `src/conversation/session.types.ts` — constante + `sliceMessagesForClaude`
+- `src/conversation/session.types.spec.ts`
+- `src/conversation/conversation-orchestrator.service.ts`
+- `src/conversation/conversation-orchestrator.service.spec.ts`
+
+### Non fait
+
+- Persist Postgres
+- Tronquer Redis lui-même
+
+##########
+
 ## Ton WhatsApp — entre-deux (serveur sympa)
 
 Date : 18 août 2026, 04:21

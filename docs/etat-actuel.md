@@ -295,4 +295,4 @@ src/
 
 ## Prochaine étape
 
-**Phase 2 — suite :** fenêtre glissante des N derniers messages, puis persist Postgres `conversations` / `messages`.
+**Phase 2 — suite :** persist async Postgres `conversations` / `messages`.

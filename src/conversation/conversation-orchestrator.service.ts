@@ -3,6 +3,7 @@ import { Business } from '../businesses/entities/business.entity';
 import { ClaudeService } from '../claude/claude.service';
 import { ModuleRegistryService } from '../module-registry/module-registry.service';
 import { ConversationSessionService } from './conversation-session.service';
+import { sliceMessagesForClaude } from './session.types';
 
 @Injectable()
 export class ConversationOrchestratorService {
@@ -30,13 +31,15 @@ export class ConversationOrchestratorService {
     const moduleDefinition = this.moduleRegistry.resolve(moduleKey);
     const systemPrompt = moduleDefinition.buildSystemPrompt(business);
 
+    const windowedMessages = sliceMessagesForClaude(session.messages);
+
     this.logger.log(
-      `Claude pour business ${business.name} (${business.id}) module=${moduleKey}`,
+      `Claude pour business ${business.name} (${business.id}) module=${moduleKey} messages=${windowedMessages.length}/${session.messages.length}`,
     );
 
     const reply = await this.claudeService.generateReply(
       systemPrompt,
-      session.messages,
+      windowedMessages,
     );
 
     if (reply) {

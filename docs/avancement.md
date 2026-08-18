@@ -62,7 +62,8 @@ Webhook WhatsApp + routing `phone_number_id` → `business` + sessions Redis + S
 - [x] `restaurant-ordering` : prompt Phase 2 (menu/commande pas encore dispo)
 - [x] `ModuleRegistryService.resolve`
 - [x] Orchestrateur `conversation` (remplace l’ack fixe)
-- [ ] Fenêtre glissante + persist `conversations` / `messages`
+- [x] Fenêtre glissante (20 derniers messages vers Claude)
+- [ ] Persist Postgres `conversations` / `messages`
 - [ ] Bout-en-bout WhatsApp → Claude → WhatsApp
 
 ### Phase 3 — Menu (sous `restaurant-ordering`)
