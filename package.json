@@ -22,7 +22,8 @@
     "migration:generate": "node -e \"require('fs').mkdirSync('src/database/migrations',{recursive:true})\" && npm run typeorm -- migration:generate src/database/migrations/schema",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
-    "migration:show": "npm run typeorm -- migration:show"
+    "migration:show": "npm run typeorm -- migration:show",
+    "seed": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-test-businesses.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

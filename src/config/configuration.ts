@@ -13,4 +13,9 @@ export default () => ({
     pass: process.env.DB_PASS || '',
     name: process.env.DB_NAME,
   },
+  whatsapp: {
+    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || '',
+    appSecret: process.env.WHATSAPP_APP_SECRET || '',
+    accessToken: process.env.WHATSAPP_ACCESS_TOKEN || '',
+  },
 });

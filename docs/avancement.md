@@ -13,7 +13,7 @@ Dernière mise à jour : 18 août 2026.
 ### Phase 0 — Setup
 
 - Scaffold NestJS TypeScript
-- Config minimale (`src/config/configuration.ts`) : `app`, `redis`, `database`
+- Config minimale (`src/config/configuration.ts`) : `app`, `redis`, `database`, `whatsapp`
 - Redis : Docker (`redis:7-alpine`, port 6379), `RedisModule` global, `RedisService` générique, ping au boot
 - PostgreSQL **local** (pas Docker) : base `whatsapp_bot`, TypeORM, ping au boot
 - Migrations TypeORM **versionnées** (`src/database/migrations/`) :
@@ -31,11 +31,18 @@ Dernière mise à jour : 18 août 2026.
 - Registre `module-registry` + `ModuleDefinition`
 - Logique resto isolée dans `src/restaurant-ordering/` (`menu`, `orders`, `delivery-zones`, definition)
 - `conversation` reste générique
+- Seed de 2 businesses test (`npm run seed`) : Chez Fatou, Teranga Grill — `restaurant_ordering`, `user_id` null, `phone_number_id` placeholders
 
 ### Hors scope volontaire (déjà tranché)
 
 - Postgres dans Docker → non
 - Auth login/JWT dashboard → **plus tard** (table `users` déjà là)
+
+### Phase 1 (en cours)
+
+- Variables Meta dans `.env` (`VERIFY_TOKEN`, `APP_SECRET`, `ACCESS_TOKEN`)
+- `GET /webhooks/whatsapp` — challenge Meta (`hub.verify_token` → `hub.challenge`)
+- `POST /webhooks/whatsapp` — HMAC `X-Hub-Signature-256` (body brut, `rawBody: true`)
 
 ---
 
@@ -49,14 +56,14 @@ Dernière mise à jour : 18 août 2026.
 
 Webhook WhatsApp + routing `phone_number_id` → `business` + sessions Redis.
 
-- [ ] Variables Meta : `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_ACCESS_TOKEN`
-- [ ] `GET /webhooks/whatsapp` — challenge Meta
-- [ ] `POST /webhooks/whatsapp` — HMAC `X-Hub-Signature-256`
-- [ ] Parser : `phone_number_id`, `from`, contenu texte
-- [ ] Routing : `phone_number_id` → `business_id`
-- [ ] Seed d’un business de test (`restaurant_ordering`)
-- [ ] Session Redis `session:{business_id}:{client_phone}` (TTL 30 min)
-- [ ] Wrapper Send API (envoi texte)
+- [x] Variables Meta : `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_ACCESS_TOKEN`
+- [x] `GET /webhooks/whatsapp` — challenge Meta
+- [x] `POST /webhooks/whatsapp` — HMAC `X-Hub-Signature-256`
+- [x] Parser : `phone_number_id`, `from`, contenu texte
+- [x] Routing : `phone_number_id` → `business_id`
+- [x] Seed de 2 businesses test (`restaurant_ordering`) — placeholders à remplacer par les vrais IDs Meta
+- [x] Session Redis `session:{business_id}:{client_phone}` (TTL 30 min)
+- [x] Wrapper Send API (envoi texte) — ack `Message reçu — {business.name}`
 
 Le webhook résout le business ; `conversation` résoudra plus tard `module.key` → `MODULE_REGISTRY`.
 

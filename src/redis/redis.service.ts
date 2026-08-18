@@ -22,9 +22,17 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.client.connect();
       await this.client.ping();
+      const info = await this.client.info('server');
+      const version = this.readInfoField(info, 'redis_version') ?? '?';
+      const os = this.readInfoField(info, 'os') ?? '?';
       this.logger.log(
-        `Connexion Redis OK (${this.describeUrl(this.client.options)})`,
+        `Connexion Redis OK (${this.describeUrl(this.client.options)}, redis ${version}, ${os})`,
       );
+      if (os.toLowerCase().includes('darwin')) {
+        this.logger.warn(
+          'Redis local (macOS) détecté sur ce port — pas le container Docker. `docker compose exec redis redis-cli KEYS "*"` restera vide.',
+        );
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(
@@ -46,7 +54,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     data: object,
     ttlSeconds: number,
   ): Promise<void> {
-    await this.client.set(key, JSON.stringify(data), 'EX', ttlSeconds);
+    const result = await this.client.set(
+      key,
+      JSON.stringify(data),
+      'EX',
+      ttlSeconds,
+    );
+    this.logger.log(`setSession ${key} ttl=${ttlSeconds}s → ${result}`);
   }
 
   async getSession(key: string): Promise<object | null> {
@@ -74,5 +88,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     const host = options.host ?? 'localhost';
     const port = options.port ?? 6379;
     return `${host}:${port}`;
+  }
+
+  private readInfoField(info: string, field: string): string | undefined {
+    const match = info.match(new RegExp(`^${field}:(.+)$`, 'm'));
+    return match?.[1]?.trim();
   }
 }

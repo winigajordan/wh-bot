@@ -30,35 +30,251 @@ Pour le POC, seul le module **prise de commande resto** existe. Le code est déj
 | Pièce | État |
 | --- | --- |
 | NestJS | OK, `npm run start:dev` |
-| Config | `app` / `redis` / `database` via `.env` |
-| Redis | Docker `redis:7-alpine` :6379, `RedisService` générique |
+| Config | `app` / `redis` / `database` / `whatsapp` via `.env` |
+| Redis | `REDIS_URL` → `localhost:6379`. Un Redis **Homebrew** occupe déjà ce port (Darwin) : Nest y écrit. Le container Docker `redis:7-alpine` tourne aussi mais `docker compose exec redis redis-cli` ne voit pas ces clés. |
 | Postgres | Local, base `whatsapp_bot` |
 | TypeORM | Connexion + ping au boot |
 | Migrations | Versionnées, déjà appliquées |
+| Webhook | Phase 1 complète : GET + POST HMAC + parse + lookup + session Redis + Send API ack. |
 
-**Redis** sert de cache/session (clés + TTL). Il n’y a pas encore de session conversation métier (`session:{business_id}:{phone}`).
+**Redis** = mémoire courte (panier, historique récent, TTL 30 min).  
+**Postgres** = mémoire longue (business, menu validé, commandes, historique complet).
+
+Tables plateforme : module `restaurant_ordering` + **2 businesses test** (seed `npm run seed`). Pas de user (auth plus tard). Menu / commandes encore vides.
+
+| Nom | `whatsapp_phone_number_id` | WABA | Statut |
+| --- | --- | --- | --- |
+| Chez Fatou | `test_phone_number_id_fatou` | `test_waba_id_fatou` | `active` |
+| Teranga Grill | `test_phone_number_id_teranga` | `test_waba_id_teranga` | `active` |
+
+Ce sont des **placeholders**. Quand tu auras les vrais IDs Meta, un `UPDATE` sur `businesses` suffit (clé unique = `whatsapp_phone_number_id`).
 
 ---
 
-## Schéma actuel
+## Comment les entités s’emboîtent
+
+Deux couches :
+
+1. **Plateforme** (tous les types de commerces) : `User`, `PlatformModule`, `Business`, `Conversation`, `Message`
+2. **Métier resto** (uniquement `restaurant_ordering`) : `MenuItem`, `DeliveryZone`, `Order`, `OrderStatusHistory`
 
 ```
-users ──────────<1:1>──────── businesses ────────── modules
-                                  │
-          ┌───────────────────────┼───────────────────────┐
-          │                       │                       │
-    menu_items            delivery_zones            conversations
-          │                       │                       │
-          │                    orders ──────────────── messages
-          │                       │
-          │              order_status_history
+User (compte dashboard, plus tard)
+  └── 1:1 Business (le commerce + son numéro WhatsApp)
+        ├── PlatformModule (ex. restaurant_ordering)
+        ├── Conversation ── Message     ← fil WhatsApp client ↔ bot
+        ├── MenuItem                    ← carte des plats
+        ├── DeliveryZone                ← quartiers livrables
+        └── Order ── OrderStatusHistory ← commandes confirmées
 ```
 
-- `modules` : seed `restaurant_ordering`
-- `businesses` : ex-table `restaurants` + `timezone`, `onboarding_state`, `module_id`, `user_id` (nullable tant qu’il n’y a pas d’auth)
-- `menu_items`, `delivery_zones`, `orders`, `conversations` : FK `business_id`
+Exemple : « Chez Fatou » a un numéro WhatsApp. Un client écrit. On trouve le `Business` via `whatsapp_phone_number_id`, on ouvre une `Conversation`. Quand il confirme, on crée un `Order`. Le panier **avant** confirmation n’est **pas** une table : il vit dans Redis.
 
-Tables **vides** de données métier (pas de business de test seedé).
+---
+
+## Entités plateforme
+
+### `User` — table `users`
+
+Compte du commerçant pour le dashboard. **Pas de login pour l’instant** : la table est là pour le schéma (1 user = 1 business).
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | UUID |
+| `email` | Identifiant de connexion, unique |
+| `passwordHash` | Mot de passe hashé (jamais en clair) |
+| `createdAt` | Date de création |
+
+Un user pourra posséder **un seul** business (`businesses.user_id` unique). Tant qu’il n’y a pas d’auth, un business peut exister **sans** user (`user_id` nullable).
+
+Fichier : `src/businesses/entities/user.entity.ts`
+
+---
+
+### `PlatformModule` — table `modules`
+
+Catalogue des **types de services** que la plateforme sait faire. Ce n’est pas un module NestJS : c’est une ligne en base.
+
+Aujourd’hui, une seule ligne (seed) :
+
+| `key` | `name` |
+| --- | --- |
+| `restaurant_ordering` | Commande Restaurant |
+
+Plus tard : `beauty_booking`, etc. Le `key` doit matcher le registre code `MODULE_REGISTRY`.
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | UUID |
+| `key` | Identifiant technique unique |
+| `name` | Libellé humain |
+| `description` | Texte d’explication |
+| `isActive` | Si `false`, plus d’onboarding sur ce module |
+
+Fichier : `src/businesses/entities/platform-module.entity.ts`
+
+---
+
+### `Business` — table `businesses`
+
+**Le locataire** : un resto (plus tard un salon, une école…). Ancienne table `restaurants`, généralisée.
+
+C’est la pièce centrale du routing WhatsApp : Meta envoie `phone_number_id` → on cherche ce `Business` → on sait quel module (donc quel prompt / quels tools).
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | UUID. Partout ailleurs on parle de `business_id` |
+| `userId` / `user` | Compte dashboard (vide tant qu’il n’y a pas d’auth) |
+| `moduleId` / `module` | Type de service (`restaurant_ordering`) |
+| `name` | Nom affiché (« Chez Fatou ») |
+| `address` | Adresse du commerce |
+| `contactPhone` | Téléphone **humain** : si le bot est hors-sujet, on redirige ici |
+| `timezone` | Fuseau, défaut `Africa/Dakar` |
+| `whatsappPhoneNumberId` | **Clé Meta** du numéro Cloud API. Unique. C’est ça qui identifie le business dans le webhook, pas l’URL |
+| `whatsappWabaId` | Id du WABA Meta |
+| `status` | `onboarding` (pas prêt) / `active` (le bot répond) / `inactive` (coupé) |
+| `onboardingState` | JSON de progression (menu uploadé ? zones OK ? premier test ?) |
+| `createdAt` | Date de création |
+
+Règle : 1 business = 1 numéro WhatsApp = 1 module métier.
+
+Fichier : `src/businesses/entities/business.entity.ts`
+
+---
+
+### `Conversation` — table `conversations`
+
+Un **fil** entre un client WhatsApp et un business. Ce n’est pas le panier (Redis) : c’est l’identité du dialogue en base, pour l’historique et le debug.
+
+Un même client qui écrit à deux commerces = deux conversations (deux `business_id`).
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | UUID |
+| `businessId` / `business` | Quel commerce |
+| `clientPhone` | Numéro WhatsApp du client (`from` du webhook) |
+| `status` | `active` ou `closed` |
+| `lastMessageAt` | Dernier message (tri, fenêtre 24 h Meta) |
+| `createdAt` | Début du fil |
+
+Fichier : `src/conversation/entities/conversation.entity.ts`  
+Générique : un salon aura aussi des conversations, le format ne change pas.
+
+---
+
+### `Message` — table `messages`
+
+Chaque message du fil, **persisté**. Redis ne garde que les N derniers pour Claude (coût tokens). Postgres garde tout.
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | UUID |
+| `conversationId` / `conversation` | Fil parent |
+| `role` | `user` (client) ou `assistant` (bot) |
+| `content` | Texte. Peut être vide si le tour n’était que des tool calls |
+| `toolCalls` | JSON des outils Claude (debug : `add_to_cart`, etc.) |
+| `createdAt` | Horodatage |
+
+Pas de `business_id` ici : on passe par la conversation.
+
+Fichier : `src/conversation/entities/message.entity.ts`
+
+---
+
+## Entités métier resto (`restaurant-ordering`)
+
+Uniquement pour un business en `restaurant_ordering`. Un futur module « RDV salon » aurait d’autres tables (prestations, créneaux), pas un menu de plats.
+
+### `MenuItem` — table `menu_items`
+
+Un plat / une boisson de la carte **validée**. Source de vérité des **prix** et de la **dispo**. Claude n’invente pas un plat : il passe par `get_menu`, qui lit cette table.
+
+Flux prévu : photo/PDF → Claude Vision → review humaine → **puis** insertion ici. Jamais publier l’extraction brute.
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | UUID du plat (`item_id` dans le panier Redis) |
+| `businessId` / `business` | Quel resto |
+| `category` | Ex. « Entrées », « Grillades » |
+| `name` | Nom du plat |
+| `price` | Prix réel. Le total commande doit venir d’ici, pas du modèle |
+| `description` | Texte optionnel |
+| `available` | `false` = rupture. `add_to_cart` / `confirm_order` doivent échouer |
+| `options` | JSON variantes / suppléments (`[]` par défaut) |
+| `createdAt` / `updatedAt` | Un changement de prix sert à la revalidation à la confirmation |
+
+Fichier : `src/restaurant-ordering/menu/entities/menu-item.entity.ts`
+
+---
+
+### `DeliveryZone` — table `delivery_zones`
+
+Liste des **quartiers** livrés. Pas de GPS. Texte : « Fass », « Point E », « Médina ».
+
+À la livraison, le backend **matche** le quartier du client à cette liste (`set_delivery_info`). Claude ne décide pas tout seul si la zone est couverte.
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | UUID |
+| `businessId` / `business` | Quel resto |
+| `zoneName` | Nom du quartier |
+
+Si le quartier n’est pas dans la liste → proposer le **retrait** (`pickup`).
+
+Fichier : `src/restaurant-ordering/delivery-zones/entities/delivery-zone.entity.ts`
+
+---
+
+### `Order` — table `orders`
+
+Une commande **confirmée**. Avant ça, le panier n’existe que dans Redis. `confirm_order` revalide prix + dispo, **puis** crée cette ligne et vide le panier.
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | UUID interne |
+| `businessId` / `business` | Quel resto |
+| `clientPhone` | Client à notifier quand le statut change |
+| `orderNumber` | Numéro unique affiché (« CMD-1042 ») |
+| `items` | **Snapshot JSON** au moment de la commande (nom, prix, qty, options). Le ticket est figé, on ne recalcule pas depuis le menu plus tard |
+| `deliveryMode` | `delivery` ou `pickup` |
+| `deliveryAddress` | Adresse texte si livraison |
+| `deliveryZoneId` / `deliveryZone` | Quartier matché (`null` en retrait) |
+| `total` | Total calculé côté serveur à la confirmation |
+| `status` | `received` → `preparing` → `ready` → `completed` |
+| `createdAt` | Date de confirmation |
+
+Le resto changera le statut depuis le dashboard ; ça déclenchera une notif WhatsApp (Phase 6).
+
+Fichier : `src/restaurant-ordering/orders/entities/order.entity.ts`
+
+---
+
+### `OrderStatusHistory` — table `order_status_history`
+
+Historique des statuts. Chaque passage « en préparation », « prêt », etc. = une ligne. Utile pour le client (`get_order_status`) et le resto.
+
+| Champ | Rôle |
+| --- | --- |
+| `id` | UUID |
+| `orderId` / `order` | Commande concernée |
+| `status` | Statut à cet instant |
+| `changedAt` | Quand ça a changé |
+
+Pas de `business_id` : on passe par la commande.
+
+Fichier : `src/restaurant-ordering/orders/entities/order-status-history.entity.ts`
+
+---
+
+## Ce qui n’est pas une entité
+
+| Chose | Où ça vit | Pourquoi |
+| --- | --- | --- |
+| Panier (`cart`) | Redis, 30 min | Éphémère ; devient `Order` seulement après confirmation |
+| Infos livraison en cours | Redis `delivery_info` | Idem, copiées sur l’`Order` à la confirmation |
+| Historique court pour Claude | Redis | N derniers tours, pour limiter les tokens |
+| Historique complet | table `messages` | Debug / preuve, pas tout renvoyé à Claude |
+| Session WhatsApp | Redis `session:{business_id}:{client_phone}` | Relie panier + messages le temps du dialogue |
 
 ---
 
@@ -66,61 +282,15 @@ Tables **vides** de données métier (pas de business de test seedé).
 
 ```
 src/
-  config/                 config Nest (PORT, Redis, DB)
-  redis/                  client ioredis générique
-  database/               TypeORM + data-source + migrations
-  businesses/             Business, User, PlatformModule
-  module-registry/        ModuleDefinition + MODULE_REGISTRY
-  restaurant-ordering/    tout ce qui est spécifique resto
-    menu/
-    orders/
-    delivery-zones/
-    restaurant-ordering.module-definition.ts
-  conversation/           générique (entités seulement)
-  webhook/                vide (Phase 1)
-  claude/                 vide (Phase 2)
-  whatsapp-client/        vide (Phase 1)
-  dashboard-api/          vide (Phase 5)
+  businesses/             User, PlatformModule, Business
+  conversation/           Conversation, Message (générique)
+  restaurant-ordering/    MenuItem, DeliveryZone, Order, OrderStatusHistory
+  module-registry/        quel prompt/tools selon modules.key
+  webhook / claude / whatsapp-client / dashboard-api   (encore vides)
 ```
-
-**Générique** (ne doit pas connaître le resto) : `webhook`, `conversation`, `claude`, `businesses`, `module-registry`.
-
-**Spécifique resto** : tout `restaurant-ordering/`. Un futur module s’ajoute au registre, sans modifier le pipeline WhatsApp → Claude.
-
-Le prompt resto et les tools sont **déclarés en stub** (`getTools()` vide, prompt minimal). La vraie logique arrivera en phases 2–4.
-
----
-
-## Ce qui n’est pas encore là
-
-- Webhook Meta (challenge + HMAC + parsing)
-- Envoi de messages WhatsApp
-- Appels Claude / function calling
-- CRUD menu / commandes / zones (entités seulement)
-- Sessions Redis de conversation
-- Dashboard Angular
-- Login (table `users` prête, pas d’endpoints)
-
----
-
-## Décisions déjà prises
-
-- Postgres local, pas Docker
-- Redis en Docker
-- Migrations **commitées** (plus de régénération par environnement)
-- Auth login reportée
-- Pas de 2e module métier dans le MVP
 
 ---
 
 ## Prochaine étape
 
-**Phase 1 — webhook WhatsApp**
-
-1. Config Meta (`VERIFY_TOKEN`, `APP_SECRET`, `ACCESS_TOKEN` System User au niveau Business Portfolio)
-2. `GET /webhooks/whatsapp` puis `POST` signé
-3. `phone_number_id` → `business`
-4. Session Redis `session:{business_id}:{client_phone}`
-5. Wrapper Send API
-
-Ensuite Phase 2 : `conversation` demande au registre le prompt/tools du module du business, puis appelle Claude.
+**Phase 2 — suite :** client Anthropic + pipeline `conversation` (WhatsApp → Claude → WhatsApp).

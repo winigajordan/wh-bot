@@ -1,4 +1,6 @@
-# docker-compose.yml
+# Redis Docker (MVP). Si un Redis Homebrew écoute déjà 127.0.0.1:6379,
+# Nest y écrit — `docker compose exec redis redis-cli` reste vide.
+# Dans ce cas : brew services stop redis, ou changer REDIS_URL.
 services:
   redis:
     image: redis:7-alpine

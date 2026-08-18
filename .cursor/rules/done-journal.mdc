@@ -1,0 +1,16 @@
+---
+description: Après chaque implémentation, tracer exactement ce qui a été fait dans docs/done.md
+alwaysApply: true
+---
+
+# Journal d’implémentation (`docs/done.md`)
+
+Après **chaque** implémentation (pas les simples discussions), ajouter un bloc en **haut** du fichier `whatsapp-bot/docs/done.md`, délimité par `##########`.
+
+Le bloc doit dire exactement :
+- titre + date + heure
+- comportement livré
+- fichiers touchés
+- ce qui n’a **pas** été fait (volontaire)
+
+Ne pas fusionner plusieurs étapes dans un seul bloc. Ne pas y mettre de secrets (tokens `.env`).
