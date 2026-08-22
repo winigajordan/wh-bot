@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Business } from '../businesses/entities/business.entity';
 import { ClaudeService } from '../claude/claude.service';
 import { ModuleRegistryService } from '../module-registry/module-registry.service';
+import { ModuleToolRegistryService } from '../module-registry/module-tool-registry.service';
+import { ORDERING_TOOLS } from '../restaurant-ordering/tools/ordering.tools';
 import { ConversationOrchestratorService } from './conversation-orchestrator.service';
 import { ConversationSessionService } from './conversation-session.service';
 
@@ -13,6 +15,8 @@ describe('ConversationOrchestratorService', () => {
   const resolve = jest.fn();
   const generateReply = jest.fn();
   const buildSystemPrompt = jest.fn();
+  const getTools = jest.fn();
+  const executeTool = jest.fn();
 
   const business = {
     id: 'biz-1',
@@ -29,13 +33,16 @@ describe('ConversationOrchestratorService', () => {
     resolve.mockReset();
     generateReply.mockReset();
     buildSystemPrompt.mockReset();
+    getTools.mockReset();
+    executeTool.mockReset();
 
     appendUserMessage.mockResolvedValue(undefined);
     getSession.mockResolvedValue({
       messages: [{ role: 'user', content: 'Salut' }],
     });
     buildSystemPrompt.mockReturnValue('prompt resto');
-    resolve.mockReturnValue({ buildSystemPrompt });
+    getTools.mockReturnValue(ORDERING_TOOLS);
+    resolve.mockReturnValue({ buildSystemPrompt, getTools });
     generateReply.mockResolvedValue('Bonjour, je vous écoute.');
 
     const module: TestingModule = await Test.createTestingModule({
@@ -50,6 +57,10 @@ describe('ConversationOrchestratorService', () => {
           },
         },
         { provide: ModuleRegistryService, useValue: { resolve } },
+        {
+          provide: ModuleToolRegistryService,
+          useValue: { execute: executeTool },
+        },
         { provide: ClaudeService, useValue: { generateReply } },
       ],
     }).compile();
@@ -69,9 +80,12 @@ describe('ConversationOrchestratorService', () => {
     );
     expect(resolve).toHaveBeenCalledWith('restaurant_ordering');
     expect(buildSystemPrompt).toHaveBeenCalledWith(business);
-    expect(generateReply).toHaveBeenCalledWith('prompt resto', [
-      { role: 'user', content: 'Salut' },
-    ]);
+    expect(generateReply).toHaveBeenCalledWith(
+      'prompt resto',
+      [{ role: 'user', content: 'Salut' }],
+      ORDERING_TOOLS,
+      expect.any(Function),
+    );
     expect(appendAssistantMessage).toHaveBeenCalledWith(
       'biz-1',
       '221779876543',

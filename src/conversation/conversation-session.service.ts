@@ -37,6 +37,19 @@ export class ConversationSessionService {
     return this.appendMessage(businessId, clientPhone, 'assistant', content);
   }
 
+  async mutateSession(
+    businessId: string,
+    clientPhone: string,
+    mutate: (session: ConversationSession) => void,
+  ): Promise<ConversationSession> {
+    const key = buildSessionKey(businessId, clientPhone);
+    const session = this.parseSession(await this.redis.getSession(key));
+    mutate(session);
+    session.last_activity = new Date().toISOString();
+    await this.redis.setSession(key, session, SESSION_TTL_SECONDS);
+    return session;
+  }
+
   private async appendMessage(
     businessId: string,
     clientPhone: string,

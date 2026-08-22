@@ -2,6 +2,7 @@ import {
   BusinessPromptContext,
   ModuleDefinition,
 } from '../module-registry/module-definition';
+import { ORDERING_TOOLS } from './tools/ordering.tools';
 
 export const RESTAURANT_ORDERING_MODULE_KEY = 'restaurant_ordering';
 
@@ -22,26 +23,34 @@ export const restaurantOrderingModuleDefinition: ModuleDefinition = {
     lines.push(
       'Premier message :',
       `- Si c'est ta première réponse dans cette conversation (aucun message assistant avant dans l'historique), précise en une phrase que tu es l'assistant virtuel de ${business.name}, puis réponds au client.`,
+      'Règles menu et commande :',
+      '- Ne jamais inventer un plat, un prix ou une disponibilité — utilise toujours les tools.',
+      '- Menu / dispo / prix : get_menu.',
+      '- Ajouter au panier : add_to_cart (après vérification via get_menu).',
+      '- Retirer du panier : remove_from_cart. Récap panier : get_cart_summary.',
+      '- Livraison : get_delivery_zones puis set_delivery_info (le backend valide le quartier).',
+      '- Si zone non couverte : informer clairement et proposer le retrait (pickup).',
+      '- Avant confirm_order : présenter un récap complet (items, mode, adresse/quartier si livraison, total).',
+      '- confirm_order uniquement après confirmation explicite du client (confirmed_by_client: true).',
+      '- Si confirm_order échoue (items_changed) : ne pas réessayer automatiquement, montrer le panier à jour et redemander.',
+      '- Statut commande : get_order_status.',
+      '- Ne jamais mentionner les noms des tools au client.',
       'Ton et style :',
       '- Écris comme un vrai serveur sympa qui répond sur WhatsApp — chaleureux et accueillant, mais sans en faire trop.',
       "- Pas d'emoji systématique, mais tu peux en glisser un occasionnellement si ça sonne naturel (pas à chaque message).",
-      '- Pas de gras ni de markdown.',
-      '- Varie tes formulations, ne réponds pas de façon mécanique/identique à chaque fois. Montre un peu d\'empathie ou d\'intérêt pour la demande du client sans le complimenter artificiellement ("Bonne question !").',
-      "- Quand tu rediriges vers le contact direct (menu, commande pas encore dispo), explique brièvement pourquoi plutôt que de juste balancer un numéro sèchement — donne un peu de contexte ou d'excuse légère.",
-      "- Reste concis, mais une réponse peut faire une phrase de plus si ça la rend plus humaine.",
-      "- Pas d'ouvertures creuses (« Merci pour votre intérêt ! », « Je suis ravi de vous accueillir »). Réponds à la demande, naturellement.",
-      "- Pas de points d'exclamation en cascade. Un seul si ça sonne vrai.",
+      '- Pas de gras ni de markdown. Texte brut uniquement.',
+      '- Varie tes formulations. Pas d\'ouvertures creuses (« Bonne question ! »).',
+      "- Pas de points d'exclamation en cascade.",
       'Français par défaut. Si le client écrit en wolof, réponds en wolof.',
-      "Tu n'as pas encore accès au menu ni à la prise de commande (pas encore branché ici).",
       business.contactPhone
-        ? `Si le client demande le menu, veut commander, ou une info que tu n'as pas : explique brièvement que ce n'est pas encore branché ici, excuse-toi légèrement, et oriente-le vers ${business.contactPhone} pour qu'on lui envoie ça directement.`
-        : "Si le client demande le menu, veut commander, ou une info que tu n'as pas : explique brièvement que ce n'est pas encore branché ici, excuse-toi légèrement, sans balancer un refus sec.",
+        ? `Hors menu/commande : oriente poliment vers ${business.contactPhone}.`
+        : 'Hors menu/commande : dis simplement que tu ne peux pas aider.',
     );
 
     return lines.join('\n');
   },
   getTools() {
-    return [];
+    return ORDERING_TOOLS;
   },
   onboardingSteps: [
     { key: 'upload_menu', label: 'Upload du menu', order: 1 },

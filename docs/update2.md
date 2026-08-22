@@ -96,7 +96,7 @@ async handleIncomingMessage(business: Business, from: string, text: string): Pro
 - `ClaudeService.generateReply` : signature et comportement identiques à ce qui était prévu, juste sans connaître le contenu du prompt
 - `appendAssistantMessage` en session Redis : inchangé
 - Remplacement de l'ack statique dans `webhook.controller.ts` par l'appel à l'orchestrateur : inchangé
-- Persistance Postgres (`conversations` / `messages`) : inchangé
+- Persistance Postgres (`conversations` / `messages`) : inchangé en **spec**, mais **reporté volontairement** (22 août 2026) — voir [avancement.md](./avancement.md). Reprendre avant dashboard ou pilote.
 
 ## Impact sur les phases futures
 

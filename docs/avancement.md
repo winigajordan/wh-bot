@@ -4,7 +4,7 @@ Suivi de ce qui est fait et de ce qui reste. Photo de l’architecture : [etat-a
 
 Tout le code vit dans `whatsapp-bot/`. L’auth **login/JWT** est reportée (la table `users` existe déjà pour le schéma).
 
-Dernière mise à jour : 18 août 2026.
+Dernière mise à jour : 22 août 2026.
 
 ---
 
@@ -33,16 +33,31 @@ Dernière mise à jour : 18 août 2026.
 - `conversation` reste générique
 - Seed de 2 businesses test (`npm run seed`) : Chez Fatou, Teranga Grill — `restaurant_ordering`, `user_id` null, `phone_number_id` placeholders
 
+### Phase 1 — Webhook WhatsApp
+
+- Variables Meta dans `.env` (`VERIFY_TOKEN`, `APP_SECRET`, `ACCESS_TOKEN`)
+- `GET /webhooks/whatsapp` — challenge Meta (`hub.verify_token` → `hub.challenge`)
+- `POST /webhooks/whatsapp` — HMAC `X-Hub-Signature-256` (body brut, `rawBody: true`)
+- Parse payload → lookup `business` par `phone_number_id`
+- Sessions Redis (`session:{business_id}:{client_phone}`, TTL 30 min)
+- Send API (réponse Claude au client)
+
+### Phase 2 — Pipeline Claude (update2)
+
+- `ANTHROPIC_API_KEY` + `ClaudeService.generateReply` générique (`claude-sonnet-4-6`)
+- `restaurant-ordering` : prompt (ton serveur sympa, présentation assistant virtuel au 1er message)
+- `ModuleRegistryService.resolve`
+- Orchestrateur `conversation` (remplace l’ack fixe)
+- Fenêtre glissante (20 derniers messages vers Claude)
+
 ### Hors scope volontaire (déjà tranché)
 
 - Postgres dans Docker → non
 - Auth login/JWT dashboard → **plus tard** (table `users` déjà là)
 
-### Phase 1 (en cours)
+### Reporté volontairement (ne pas oublier)
 
-- Variables Meta dans `.env` (`VERIFY_TOKEN`, `APP_SECRET`, `ACCESS_TOKEN`)
-- `GET /webhooks/whatsapp` — challenge Meta (`hub.verify_token` → `hub.challenge`)
-- `POST /webhooks/whatsapp` — HMAC `X-Hub-Signature-256` (body brut, `rawBody: true`)
+- **Persist Postgres `conversations` / `messages`** — reporté le 22 août 2026. Redis suffit pour le bot en temps réel ; l’archive Postgres servira surtout au dashboard (Phase 5) et au debug en pilote. Tables déjà en schéma, jamais alimentées. **Reprendre avant dashboard ou pilote restos réels.**
 
 ---
 
@@ -52,32 +67,31 @@ Dernière mise à jour : 18 août 2026.
 
 - [ ] `WHATSAPP_ACCESS_TOKEN` : System User au niveau du **Business Portfolio**, pas d’un WABA unique (accès aux deux WABA)
 
-### Phase 1 (terminée)
+### Phase 2 — clôture (reste optionnel)
 
-Webhook WhatsApp + routing `phone_number_id` → `business` + sessions Redis + Send API ack.
+- [ ] Persist Postgres `conversations` / `messages` → **reporté** (voir ci-dessus)
+- [ ] Bout-en-bout WhatsApp → Claude → WhatsApp (validation avec vrais IDs Meta)
 
-### Phase 2 (en cours) — Pipeline Claude (update2)
+### Phase 3 — Menu (sous `restaurant-ordering`) — cœur fait
 
-- [x] `ANTHROPIC_API_KEY` + `ClaudeService.generateReply` générique (`claude-sonnet-4-6`)
-- [x] `restaurant-ordering` : prompt Phase 2 (menu/commande pas encore dispo)
-- [x] `ModuleRegistryService.resolve`
-- [x] Orchestrateur `conversation` (remplace l’ack fixe)
-- [x] Fenêtre glissante (20 derniers messages vers Claude)
-- [ ] Persist Postgres `conversations` / `messages`
-- [ ] Bout-en-bout WhatsApp → Claude → WhatsApp
+- [x] `MenuService.getMenu` (groupé par catégorie, filtre optionnel)
+- [x] Tool `get_menu` + boucle tool calling Claude
+- [x] Seed menu test (`npm run seed:menu`)
+- [x] Prompt resto mis à jour (menu via tool, commande pas encore dispo)
+- [ ] Upload image/PDF + extraction Vision + review humaine (dashboard)
+- [ ] Endpoints CRUD HTTP menu (dashboard)
 
-### Phase 3 — Menu (sous `restaurant-ordering`)
+### Phase 4 — Panier / commandes (sous `restaurant-ordering`) — cœur fait
 
-- [ ] CRUD `menu_items`
-- [ ] Upload image/PDF + extraction Vision + review humaine
-- [ ] Tool `get_menu`
-
-### Phase 4 — Panier / commandes (sous `restaurant-ordering`)
-
-- [ ] Tools panier, zones, `confirm_order` (revalidation stricte), `get_order_status`
+- [x] `CartService` (panier Redis via session)
+- [x] Tools : `add_to_cart`, `remove_from_cart`, `get_cart_summary`
+- [x] `DeliveryZonesService` + matching quartier + seed (`npm run seed:zones`)
+- [x] Tools : `get_delivery_zones`, `set_delivery_info`
+- [x] `OrdersService` + `confirm_order` (revalidation stricte) + `get_order_status`
+- [x] Prompt resto : flow commande complet
 - [ ] WebSocket dashboard à la confirmation
 
-### Phase 5 — Dashboard (sans auth login pour l’instant)
+### Phase 5 — Dashboard (sans auth login pour l’instant) ← **prochaine étape**
 
 - [ ] App Angular
 - [ ] Écrans commandes / menu / zones / review
@@ -97,4 +111,7 @@ Voir specs §13. Pas de 2e module métier (`salon`, banque, école) pour le POC 
 
 ## Ordre
 
-**0 → 1 → 2** séquentielles. **3 et 4** en parallèle. **5** dès que les endpoints 3–4 sont stables.
+**0 → 1 → 2** : fait (Phase 2 considérée suffisante sans persist Postgres).  
+**3 et 4** : prochaines, en parallèle possible.  
+**Persist messages** : avant Phase 5 ou pilote, pas avant menu/panier.  
+**5** : dès que les endpoints 3–4 sont stables.

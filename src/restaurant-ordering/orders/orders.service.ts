@@ -1,0 +1,202 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ConversationSessionService } from '../../conversation/conversation-session.service';
+import { SessionCartItem } from '../../conversation/session.types';
+import { CartService } from '../cart/cart.service';
+import { MenuService } from '../menu/menu.service';
+import { OrderStatusHistory } from './entities/order-status-history.entity';
+import { Order } from './entities/order.entity';
+
+type InvalidCartItem = {
+  item_id: string;
+  name: string;
+  reason: 'item_not_found' | 'item_unavailable' | 'price_changed';
+};
+
+@Injectable()
+export class OrdersService {
+  constructor(
+    @InjectRepository(Order)
+    private readonly orderRepo: Repository<Order>,
+    @InjectRepository(OrderStatusHistory)
+    private readonly historyRepo: Repository<OrderStatusHistory>,
+    private readonly sessionService: ConversationSessionService,
+    private readonly cartService: CartService,
+    private readonly menuService: MenuService,
+  ) {}
+
+  async confirmOrder(
+    businessId: string,
+    clientPhone: string,
+    confirmedByClient: boolean,
+  ): Promise<
+    | { success: true; order_number: string; total: number }
+    | {
+        success: false;
+        reason:
+          | 'not_confirmed'
+          | 'empty_cart'
+          | 'delivery_not_set'
+          | 'items_changed';
+        invalid_items?: InvalidCartItem[];
+      }
+  > {
+    if (!confirmedByClient) {
+      return { success: false, reason: 'not_confirmed' };
+    }
+
+    const session = await this.sessionService.getSession(
+      businessId,
+      clientPhone,
+    );
+
+    if (session.cart.length === 0) {
+      return { success: false, reason: 'empty_cart' };
+    }
+
+    if (!session.delivery_info) {
+      return { success: false, reason: 'delivery_not_set' };
+    }
+
+    const invalidItems = await this.findInvalidCartItems(
+      businessId,
+      session.cart,
+    );
+    if (invalidItems.length > 0) {
+      return {
+        success: false,
+        reason: 'items_changed',
+        invalid_items: invalidItems,
+      };
+    }
+
+    const summary = await this.cartService.getCartSummary(
+      businessId,
+      clientPhone,
+    );
+    const orderNumber = await this.generateOrderNumber(businessId);
+
+    const order = await this.orderRepo.save(
+      this.orderRepo.create({
+        businessId,
+        clientPhone,
+        orderNumber,
+        items: session.cart.map((item) => ({
+          item_id: item.item_id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          options: item.options,
+        })),
+        deliveryMode: session.delivery_info.mode,
+        deliveryAddress:
+          session.delivery_info.mode === 'delivery'
+            ? (session.delivery_info.address_text ?? null)
+            : null,
+        deliveryZoneId: session.delivery_info.zone_id ?? null,
+        total: summary.subtotal.toFixed(2),
+        status: 'received',
+      }),
+    );
+
+    await this.historyRepo.save(
+      this.historyRepo.create({
+        orderId: order.id,
+        status: 'received',
+      }),
+    );
+
+    await this.cartService.clearCartAndDelivery(businessId, clientPhone);
+
+    return {
+      success: true,
+      order_number: orderNumber,
+      total: summary.subtotal,
+    };
+  }
+
+  async getOrderStatus(
+    businessId: string,
+    clientPhone: string,
+    orderNumber: string,
+  ): Promise<
+    | {
+        found: true;
+        order_number: string;
+        status: string;
+        history: { status: string; changed_at: string }[];
+      }
+    | { found: false }
+  > {
+    const order = await this.orderRepo.findOne({
+      where: { businessId, clientPhone, orderNumber },
+    });
+
+    if (!order) {
+      return { found: false };
+    }
+
+    const history = await this.historyRepo.find({
+      where: { orderId: order.id },
+      order: { changedAt: 'ASC' },
+    });
+
+    return {
+      found: true,
+      order_number: order.orderNumber,
+      status: order.status,
+      history: history.map((entry) => ({
+        status: entry.status,
+        changed_at: entry.changedAt.toISOString(),
+      })),
+    };
+  }
+
+  private async findInvalidCartItems(
+    businessId: string,
+    cart: SessionCartItem[],
+  ): Promise<InvalidCartItem[]> {
+    const invalid: InvalidCartItem[] = [];
+
+    for (const cartItem of cart) {
+      const menuItem = await this.menuService.findById(
+        businessId,
+        cartItem.item_id,
+      );
+
+      if (!menuItem) {
+        invalid.push({
+          item_id: cartItem.item_id,
+          name: cartItem.name,
+          reason: 'item_not_found',
+        });
+        continue;
+      }
+
+      if (!menuItem.available) {
+        invalid.push({
+          item_id: cartItem.item_id,
+          name: menuItem.name,
+          reason: 'item_unavailable',
+        });
+        continue;
+      }
+
+      if (Number(menuItem.price) !== cartItem.price) {
+        invalid.push({
+          item_id: cartItem.item_id,
+          name: menuItem.name,
+          reason: 'price_changed',
+        });
+      }
+    }
+
+    return invalid;
+  }
+
+  private async generateOrderNumber(businessId: string): Promise<string> {
+    const count = await this.orderRepo.count({ where: { businessId } });
+    return `CMD-${String(count + 1).padStart(4, '0')}`;
+  }
+}

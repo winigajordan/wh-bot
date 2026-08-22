@@ -1,15 +1,15 @@
 # État actuel du projet
 
-Photo de `whatsapp-bot` au 18 août 2026. Pour la liste des tâches : [avancement.md](./avancement.md). Specs : [specs.md](./specs.md). Refactor : [update1.md](./update1.md).
+Photo de `whatsapp-bot` au 22 août 2026. Pour la liste des tâches : [avancement.md](./avancement.md). Specs : [specs.md](./specs.md). Refactor : [update1.md](./update1.md).
 
 ---
 
 ## En une phrase
 
-Le **socle** tourne (NestJS + Redis + Postgres + schéma multi-tenant).  
-Le **métier** (webhook WhatsApp, Claude, panier, dashboard) n’est pas encore branché.
+Le **socle** et le **pipeline conversationnel** tournent (webhook WhatsApp → Redis → Claude → Send API).  
+Il reste le **métier commande** (menu, panier, confirmation) et le **dashboard**.
 
-L’app démarre, ping Redis et Postgres, charge les modules. La seule route HTTP utile pour l’instant est `GET /` (hello Nest).
+Route HTTP utile : `GET/POST /webhooks/whatsapp` (+ `GET /` hello Nest).
 
 ---
 
@@ -37,8 +37,8 @@ Pour le POC, seul le module **prise de commande resto** existe. Le code est déj
 | Migrations | Versionnées, déjà appliquées |
 | Webhook | Phase 1 + orchestrateur Claude : WhatsApp → registry → Claude → Send API. Ack fixe retiré. |
 
-**Redis** = mémoire courte (panier, historique récent, TTL 30 min).  
-**Postgres** = mémoire longue (business, menu validé, commandes, historique complet).
+**Redis** = mémoire courte (messages récents pour Claude, panier futur, TTL 30 min).  
+**Postgres** = mémoire longue (business, menu validé, commandes). Tables `conversations` / `messages` existent mais **ne sont pas alimentées** — persist reporté volontairement (voir [avancement.md](./avancement.md)).
 
 Tables plateforme : module `restaurant_ordering` + **2 businesses test** (seed `npm run seed`). Pas de user (auth plus tard). Menu / commandes encore vides.
 
@@ -164,7 +164,7 @@ Générique : un salon aura aussi des conversations, le format ne change pas.
 
 ### `Message` — table `messages`
 
-Chaque message du fil, **persisté**. Redis ne garde que les N derniers pour Claude (coût tokens). Postgres garde tout.
+Chaque message du fil, **à persister en Postgres** (async, prévu specs §6) — **pas encore implémenté** (reporté). Redis garde les N derniers pour Claude (coût tokens) + TTL 30 min.
 
 | Champ | Rôle |
 | --- | --- |
@@ -286,13 +286,22 @@ src/
   conversation/           Conversation, Message (générique)
   restaurant-ordering/    MenuItem, DeliveryZone, Order, OrderStatusHistory
   module-registry/        quel prompt/tools selon modules.key
-  webhook / whatsapp-client   (phase 1)
-  claude/                     generateReply générique (pas branché au webhook)
+  webhook / whatsapp-client   (phase 1 — branché)
+  claude/                     generateReply générique (branché via orchestrateur)
   dashboard-api               (encore vide)
 ```
 
 ---
 
+## Décisions reportées
+
+| Sujet | Décision | Reprendre quand |
+| --- | --- | --- |
+| Persist Postgres `conversations` / `messages` | Reporté (22 août 2026) — Redis suffit pour le bot ; archive utile surtout pour dashboard et debug pilote | Avant Phase 5 ou pilote restos réels |
+| Auth login/JWT | Reporté dès le départ | Avec le dashboard |
+
+---
+
 ## Prochaine étape
 
-**Phase 2 — suite :** persist async Postgres `conversations` / `messages`.
+**Phase 5 — Dashboard** (ou test bout-en-bout commande WhatsApp). WebSocket reporté avec le dashboard.

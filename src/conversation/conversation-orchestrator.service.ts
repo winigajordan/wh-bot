@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Business } from '../businesses/entities/business.entity';
 import { ClaudeService } from '../claude/claude.service';
 import { ModuleRegistryService } from '../module-registry/module-registry.service';
+import { ModuleToolRegistryService } from '../module-registry/module-tool-registry.service';
 import { ConversationSessionService } from './conversation-session.service';
 import { sliceMessagesForClaude } from './session.types';
 
@@ -12,6 +13,7 @@ export class ConversationOrchestratorService {
   constructor(
     private readonly sessionService: ConversationSessionService,
     private readonly moduleRegistry: ModuleRegistryService,
+    private readonly moduleToolRegistry: ModuleToolRegistryService,
     private readonly claudeService: ClaudeService,
   ) {}
 
@@ -30,16 +32,24 @@ export class ConversationOrchestratorService {
 
     const moduleDefinition = this.moduleRegistry.resolve(moduleKey);
     const systemPrompt = moduleDefinition.buildSystemPrompt(business);
-
+    const tools = moduleDefinition.getTools();
     const windowedMessages = sliceMessagesForClaude(session.messages);
 
     this.logger.log(
-      `Claude pour business ${business.name} (${business.id}) module=${moduleKey} messages=${windowedMessages.length}/${session.messages.length}`,
+      `Claude pour business ${business.name} (${business.id}) module=${moduleKey} messages=${windowedMessages.length}/${session.messages.length} tools=${tools.length}`,
     );
 
     const reply = await this.claudeService.generateReply(
       systemPrompt,
       windowedMessages,
+      tools,
+      tools.length
+        ? (name, input) =>
+            this.moduleToolRegistry.execute(moduleKey, name, input, {
+              businessId: business.id,
+              clientPhone: from,
+            })
+        : undefined,
     );
 
     if (reply) {

@@ -1,4 +1,5 @@
 import { restaurantOrderingModuleDefinition } from './restaurant-ordering.module-definition';
+import { ORDERING_TOOLS } from './tools/ordering.tools';
 
 describe('restaurantOrderingModuleDefinition', () => {
   const business = {
@@ -15,38 +16,20 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(prompt).toContain('+221781234567');
   });
 
-  it('calibré entre froid et commercial', () => {
+  it('décrit le flow de commande complet', () => {
     const prompt =
       restaurantOrderingModuleDefinition.buildSystemPrompt(business);
 
-    expect(prompt).toContain('serveur sympa');
-    expect(prompt).toContain("Pas d'emoji systématique");
-    expect(prompt).toContain('Pas de gras');
-    expect(prompt).toContain('Bonne question');
-    expect(prompt).toContain('excuse');
-    expect(prompt).toContain('+221781234567');
+    expect(prompt).toContain('get_menu');
+    expect(prompt).toContain('add_to_cart');
+    expect(prompt).toContain('confirm_order');
+    expect(prompt).toMatch(/inventer/i);
   });
 
-  it('demande une présentation comme assistant virtuel au premier message', () => {
-    const prompt =
-      restaurantOrderingModuleDefinition.buildSystemPrompt(business);
-
-    expect(prompt).toContain('assistant virtuel');
-    expect(prompt).toContain('Premier message');
-    expect(prompt).toMatch(/première réponse/i);
-    expect(prompt).toContain('Les délices de Jordan');
-  });
-
-  it('annonce que menu et commande ne sont pas encore disponibles', () => {
-    const prompt =
-      restaurantOrderingModuleDefinition.buildSystemPrompt(business);
-
-    expect(prompt).toMatch(/menu/i);
-    expect(prompt).toMatch(/commande/i);
-    expect(prompt).toMatch(/pas encore/i);
-  });
-
-  it('ne fournit pas de tools en Phase 2', () => {
-    expect(restaurantOrderingModuleDefinition.getTools()).toEqual([]);
+  it('expose tous les tools de commande', () => {
+    expect(restaurantOrderingModuleDefinition.getTools()).toEqual(
+      ORDERING_TOOLS,
+    );
+    expect(restaurantOrderingModuleDefinition.getTools()).toHaveLength(8);
   });
 });

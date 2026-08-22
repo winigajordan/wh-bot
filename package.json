@@ -23,7 +23,9 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show",
-    "seed": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-test-businesses.ts"
+    "seed": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-test-businesses.ts",
+    "seed:menu": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-test-menu.ts",
+    "seed:zones": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-delivery-zones.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

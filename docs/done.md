@@ -9,6 +9,100 @@ Format d’un bloc :
 
 ##########
 
+## Phase 4 — Panier, livraison, confirmation commande
+
+Date : 22 août 2026, 12:18
+
+### Comportement
+
+- **Panier Redis** : `CartService` via `ConversationSessionService.mutateSession`
+- **Tools** : `add_to_cart`, `remove_from_cart`, `get_cart_summary`, `get_delivery_zones`, `set_delivery_info`, `confirm_order`, `get_order_status` (+ `get_menu`)
+- **Livraison** : matching quartier côté backend (`zone-matching.util`), pas de GPS
+- **confirm_order** : revalidation prix/dispo en base → création `orders` + `order_status_history` → vide panier Redis
+- **Prompt** : flow commande specs §8 (récap → confirmation explicite)
+- **Seed zones** : `npm run seed:zones`
+
+### Fichiers
+
+- `src/restaurant-ordering/cart/cart.service.ts`
+- `src/restaurant-ordering/delivery-zones/delivery-zones.service.ts` + `zone-matching.util.ts`
+- `src/restaurant-ordering/orders/orders.service.ts`
+- `src/restaurant-ordering/tools/ordering.tools.ts`
+- `src/restaurant-ordering/tools/restaurant-ordering-tools.service.ts`
+- `src/conversation/conversation-session.service.ts` — `mutateSession`
+- `src/database/seeds/seed-delivery-zones.ts`
+
+### Non fait (volontaire)
+
+- WebSocket dashboard à la confirmation (Phase 5)
+- Notifications WhatsApp statut commande (Phase 6)
+
+##########
+
+## Phase 3 — Menu + tool get_menu
+
+Date : 22 août 2026, 12:02
+
+### Comportement
+
+- `MenuService.getMenu(businessId, category?)` — lit `menu_items`, groupe par catégorie, format specs §9
+- Tool `get_menu` exposé via `restaurant-ordering` → exécuté par `RestaurantOrderingToolsService`
+- `ModuleToolRegistryService` délègue les tools au module métier
+- `ClaudeService.generateReply` — boucle tool calling (max 5 itérations) si tools + executor fournis
+- Orchestrateur passe tools + executor au registre
+- Prompt resto : menu via `get_menu`, commande encore reportée (Phase 4)
+- Seed : `npm run seed:menu` — plats pour Winiga Jordan et Les délices de Jordan
+
+### Fichiers
+
+- `src/restaurant-ordering/menu/menu.service.ts` (+ types, spec)
+- `src/restaurant-ordering/tools/get-menu.tool.ts`
+- `src/restaurant-ordering/tools/restaurant-ordering-tools.service.ts` (+ spec)
+- `src/module-registry/module-tool-registry.service.ts` (+ spec)
+- `src/claude/claude.service.ts` — boucle tools
+- `src/conversation/conversation-orchestrator.service.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+- `src/database/seeds/seed-test-menu.ts`
+- `package.json` — script `seed:menu`
+
+### Non fait (volontaire)
+
+- Upload Vision + review dashboard
+- Endpoints HTTP CRUD menu (dashboard Phase 5)
+- Tools panier (Phase 4)
+
+##########
+
+## Décision — persist Postgres reporté
+
+Date : 22 août 2026, 11:53
+
+### Décision
+
+Ne **pas** implémenter pour l’instant la persistance async `conversations` / `messages` en Postgres. Redis reste la seule source pour l’historique conversationnel en runtime.
+
+### Pourquoi
+
+- Non bloquant pour faire avancer le bot (menu, panier, commande)
+- Valeur surtout au dashboard (Phase 5) et en pilote restos réels
+- Tables déjà en schéma, prêtes quand on reprendra
+
+### Reprendre quand
+
+Avant Phase 5 (dashboard) ou pilote avec de vrais commerces.
+
+### Fichiers doc mis à jour
+
+- `docs/avancement.md`
+- `docs/etat-actuel.md`
+
+### Non fait (volontaire)
+
+- `ConversationPersistenceService` ou équivalent
+- Écriture async user/assistant en base
+
+##########
+
 ## Premier message : présentation assistant virtuel
 
 Date : 22 août 2026, 11:30
