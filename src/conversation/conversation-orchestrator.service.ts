@@ -23,6 +23,10 @@ export class ConversationOrchestratorService {
     text: string,
   ): Promise<string> {
     await this.sessionService.appendUserMessage(business.id, from, text);
+    return this.processConversation(business, from);
+  }
+
+  async processConversation(business: Business, from: string): Promise<string> {
     const session = await this.sessionService.getSession(business.id, from);
 
     const moduleKey = business.module?.key;

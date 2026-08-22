@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { isUuid } from '../../common/uuid.util';
 import { MenuItem } from './entities/menu-item.entity';
 import { GetMenuResult, MenuCategoryDto, MenuItemDto } from './menu.types';
 
@@ -75,6 +76,9 @@ export class MenuService {
     businessId: string,
     itemId: string,
   ): Promise<MenuItem | null> {
+    if (!isUuid(itemId)) {
+      return null;
+    }
     return this.menuItemRepo.findOneBy({ id: itemId, businessId });
   }
 

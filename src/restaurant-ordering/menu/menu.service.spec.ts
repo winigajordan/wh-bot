@@ -6,9 +6,11 @@ import { MenuService } from './menu.service';
 describe('MenuService', () => {
   let service: MenuService;
   const getMany = jest.fn();
+  const findOneBy = jest.fn();
 
   beforeEach(async () => {
     getMany.mockReset();
+    findOneBy.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -16,6 +18,7 @@ describe('MenuService', () => {
         {
           provide: getRepositoryToken(MenuItem),
           useValue: {
+            findOneBy,
             createQueryBuilder: () => ({
               where: jest.fn().mockReturnThis(),
               andWhere: jest.fn().mockReturnThis(),
@@ -79,5 +82,12 @@ describe('MenuService', () => {
         },
       ],
     });
+  });
+
+  it('findById ignore les identifiants non-UUID', async () => {
+    await expect(
+      service.findById('biz-1', 'thieb-yapp-id'),
+    ).resolves.toBeNull();
+    expect(findOneBy).not.toHaveBeenCalled();
   });
 });

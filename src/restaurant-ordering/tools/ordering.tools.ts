@@ -4,7 +4,7 @@ import { GET_MENU_TOOL } from './get-menu.tool';
 export const ADD_TO_CART_TOOL: ClaudeToolDefinition = {
   name: 'add_to_cart',
   description:
-    'Ajoute un plat au panier. Utilise item_id et quantity depuis get_menu.',
+    'Ajoute un plat au panier. item_id doit être l’UUID exact renvoyé par get_menu (champ id) — ne jamais inventer un identifiant.',
   input_schema: {
     type: 'object',
     properties: {
@@ -34,7 +34,8 @@ export const REMOVE_FROM_CART_TOOL: ClaudeToolDefinition = {
 
 export const GET_CART_SUMMARY_TOOL: ClaudeToolDefinition = {
   name: 'get_cart_summary',
-  description: 'Affiche le contenu actuel du panier et le sous-total.',
+  description:
+    'Affiche le panier : items, subtotal, delivery_fee (0 en retrait), total, order_note.',
   input_schema: {
     type: 'object',
     properties: {},
@@ -43,7 +44,8 @@ export const GET_CART_SUMMARY_TOOL: ClaudeToolDefinition = {
 
 export const GET_DELIVERY_ZONES_TOOL: ClaudeToolDefinition = {
   name: 'get_delivery_zones',
-  description: 'Liste les quartiers livrables du restaurant.',
+  description:
+    'Liste les quartiers livrables avec leurs frais de livraison (delivery_fee).',
   input_schema: {
     type: 'object',
     properties: {},
@@ -64,6 +66,22 @@ export const SET_DELIVERY_INFO_TOOL: ClaudeToolDefinition = {
       },
     },
     required: ['mode'],
+  },
+};
+
+export const SET_ORDER_NOTE_TOOL: ClaudeToolDefinition = {
+  name: 'set_order_note',
+  description:
+    'Enregistre une note pour la commande si le client en fournit une (allergies, instructions cuisine, etc.).',
+  input_schema: {
+    type: 'object',
+    properties: {
+      note: {
+        type: 'string',
+        description: 'Texte de la note fournie par le client.',
+      },
+    },
+    required: ['note'],
   },
 };
 
@@ -102,6 +120,7 @@ export const ORDERING_TOOLS: ClaudeToolDefinition[] = [
   GET_CART_SUMMARY_TOOL,
   GET_DELIVERY_ZONES_TOOL,
   SET_DELIVERY_INFO_TOOL,
+  SET_ORDER_NOTE_TOOL,
   CONFIRM_ORDER_TOOL,
   GET_ORDER_STATUS_TOOL,
 ];

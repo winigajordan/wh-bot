@@ -9,6 +9,8 @@ export type SessionDeliveryInfo = {
   mode: 'delivery' | 'pickup';
   address_text?: string;
   zone_id?: string;
+  zone_name?: string;
+  delivery_fee?: number;
 };
 
 export type SessionCartItem = {
@@ -23,6 +25,8 @@ export type ConversationSession = {
   messages: SessionMessage[];
   cart: SessionCartItem[];
   delivery_info: SessionDeliveryInfo | null;
+  /** Note optionnelle pour la commande (allergies, instructions…). */
+  order_note: string | null;
   last_activity: string;
 };
 
@@ -50,6 +54,19 @@ export function sliceMessagesForClaude(
   return sliced.slice(firstUserIndex);
 }
 
+/** Messages utilisateur reçus depuis la dernière réponse assistant (fin de session). */
+export function hasPendingUserMessages(messages: SessionMessage[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === 'assistant') {
+      return false;
+    }
+    if (messages[i].role === 'user') {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function createEmptySession(
   lastActivity = new Date().toISOString(),
 ): ConversationSession {
@@ -57,6 +74,7 @@ export function createEmptySession(
     messages: [],
     cart: [],
     delivery_info: null,
+    order_note: null,
     last_activity: lastActivity,
   };
 }

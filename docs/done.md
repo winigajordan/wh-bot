@@ -9,6 +9,97 @@ Format d’un bloc :
 
 ##########
 
+## Frais de livraison par zone
+
+Date : 22 août 2026, 12:50
+
+### Comportement
+
+- `delivery_zones.delivery_fee` — frais par quartier (FCFA)
+- `set_delivery_info` en livraison : enregistre `delivery_fee` en session + le retourne au tool
+- `get_cart_summary` : `subtotal`, `delivery_fee`, `total`
+- `get_delivery_zones` : liste `{ name, delivery_fee }`
+- `confirm_order` : revalide le frais depuis la zone en base ; `orders.delivery_fee` + `total` = subtotal + frais
+- Retrait : `delivery_fee = 0`
+- Seed zones mis à jour (`npm run seed:zones`)
+
+### Fichiers
+
+- Migration `1787002700000-AddDeliveryFee.ts`
+- `delivery-zones` entity + service
+- `cart.service.ts`, `orders.service.ts`, tools, prompt
+- `seed-delivery-zones.ts`
+
+##########
+
+## Fix add_to_cart — UUID invalide (thieb-yapp-id)
+
+Date : 22 août 2026, 12:45
+
+### Problème
+
+Claude appelait `add_to_cart` avec un id inventé (`thieb-yapp-id`) → Postgres `invalid input syntax for type uuid` → orchestrateur en échec, pas de réponse client.
+
+### Comportement
+
+- `isUuid()` avant toute requête `menu_items` par id
+- Id invalide → `{ success: false, reason: 'item_not_found' }` (pas d’exception)
+- Prompt + description tool `add_to_cart` : utiliser l’UUID exact de `get_menu`
+
+### Fichiers
+
+- `src/common/uuid.util.ts`
+- `src/restaurant-ordering/menu/menu.service.ts`
+- `src/restaurant-ordering/tools/ordering.tools.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+
+##########
+
+## Note de commande — optionnelle, non bloquante
+
+Date : 22 août 2026, 12:32
+
+### Comportement
+
+- `note_declined` supprimé ; plus de `note_not_addressed` sur `confirm_order`
+- `set_order_note` : enregistre une note seulement si le client en fournit une
+- Récap : mention optionnelle de la note dans le même message (« vous pouvez ajouter une note si besoin, sinon je valide comme ça »)
+- Confirmation possible sans note ni réponse explicite sur la note
+
+### Fichiers
+
+- `src/conversation/session.types.ts`
+- `src/restaurant-ordering/cart/cart.service.ts`
+- `src/restaurant-ordering/orders/orders.service.ts`
+- `src/restaurant-ordering/tools/ordering.tools.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+
+##########
+
+## Note de commande (set_order_note)
+
+Date : 22 août 2026, 12:25
+
+### Comportement
+
+- Session Redis : `order_note` + `note_declined`
+- Tool `set_order_note` : enregistre une note ou `declined=true` si le client n’en veut pas
+- `get_cart_summary` expose l’état de la note
+- Au récap : si pas de note et pas declined → le bot demande ; `confirm_order` refuse avec `note_not_addressed` tant que non traité
+- Colonne `orders.note` (migration `1787002600000`)
+
+### Fichiers
+
+- `src/conversation/session.types.ts`
+- `src/restaurant-ordering/cart/cart.service.ts`
+- `src/restaurant-ordering/tools/ordering.tools.ts`
+- `src/restaurant-ordering/tools/restaurant-ordering-tools.service.ts`
+- `src/restaurant-ordering/orders/orders.service.ts` + entity
+- `src/database/migrations/1787002600000-AddOrderNote.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+
+##########
+
 ## Phase 4 — Panier, livraison, confirmation commande
 
 Date : 22 août 2026, 12:18

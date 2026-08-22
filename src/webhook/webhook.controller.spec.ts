@@ -4,8 +4,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import type { Request } from 'express';
 import { BusinessesService } from '../businesses/businesses.service';
 import { Business } from '../businesses/entities/business.entity';
-import { ConversationOrchestratorService } from '../conversation/conversation-orchestrator.service';
-import { WhatsappClientService } from '../whatsapp-client/whatsapp-client.service';
+import { ConversationDebounceService } from '../conversation-queue/conversation-debounce.service';
+import { ConversationSessionService } from '../conversation/conversation-session.service';
 import { WebhookController } from './webhook.controller';
 import { computeWebhookSignature } from './webhook-signature.util';
 
@@ -13,15 +13,15 @@ describe('WebhookController', () => {
   let controller: WebhookController;
   const appSecret = 'test-app-secret';
   const findByWhatsAppPhoneNumberId = jest.fn();
-  const handleIncomingMessage = jest.fn();
-  const sendTextMessage = jest.fn();
+  const appendUserMessage = jest.fn();
+  const scheduleProcessing = jest.fn();
 
   beforeEach(async () => {
     findByWhatsAppPhoneNumberId.mockReset();
-    handleIncomingMessage.mockReset();
-    sendTextMessage.mockReset();
-    handleIncomingMessage.mockResolvedValue('Bonjour, je vous écoute.');
-    sendTextMessage.mockResolvedValue(undefined);
+    appendUserMessage.mockReset();
+    scheduleProcessing.mockReset();
+    appendUserMessage.mockResolvedValue(undefined);
+    scheduleProcessing.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WebhookController],
@@ -45,12 +45,12 @@ describe('WebhookController', () => {
           useValue: { findByWhatsAppPhoneNumberId },
         },
         {
-          provide: ConversationOrchestratorService,
-          useValue: { handleIncomingMessage },
+          provide: ConversationSessionService,
+          useValue: { appendUserMessage },
         },
         {
-          provide: WhatsappClientService,
-          useValue: { sendTextMessage },
+          provide: ConversationDebounceService,
+          useValue: { scheduleProcessing },
         },
       ],
     }).compile();
@@ -89,7 +89,7 @@ describe('WebhookController', () => {
       ).resolves.toEqual({ status: 'ok' });
     });
 
-    it('résout le business pour un message texte signé', async () => {
+    it('append le message et programme le debounce pour un business actif', async () => {
       const payload = {
         object: 'whatsapp_business_account',
         entry: [
@@ -129,16 +129,16 @@ describe('WebhookController', () => {
       expect(findByWhatsAppPhoneNumberId).toHaveBeenCalledWith(
         'test_phone_number_id_fatou',
       );
-      expect(handleIncomingMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'biz-fatou', name: 'Chez Fatou' }),
+      expect(appendUserMessage).toHaveBeenCalledWith(
+        'biz-fatou',
         '221779876543',
         'Salut',
       );
-      expect(sendTextMessage).toHaveBeenCalledWith(
-        'test_phone_number_id_fatou',
-        '221779876543',
-        'Bonjour, je vous écoute.',
-      );
+      expect(scheduleProcessing).toHaveBeenCalledWith({
+        businessId: 'biz-fatou',
+        clientPhone: '221779876543',
+        phoneNumberId: 'test_phone_number_id_fatou',
+      });
     });
 
     it('retourne ok même si le business est inconnu', async () => {

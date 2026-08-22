@@ -49,8 +49,14 @@ export class Order {
   @Column({ type: 'numeric' })
   total!: string;
 
+  @Column({ name: 'delivery_fee', type: 'numeric', default: () => '0' })
+  deliveryFee!: string;
+
   @Column({ type: 'varchar', default: 'received' })
   status!: OrderStatus;
+
+  @Column({ type: 'text', nullable: true })
+  note!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt!: Date;

@@ -39,7 +39,13 @@ describe('CartService', () => {
       available: true,
     });
     mutateSession.mockImplementation(async (_b, _p, mutate) => {
-      const session = { cart: [], delivery_info: null, messages: [], last_activity: '' };
+      const session = {
+        cart: [],
+        delivery_info: null,
+        order_note: null,
+        messages: [],
+        last_activity: '',
+      };
       mutate(session);
       return session;
     });
@@ -68,5 +74,34 @@ describe('CartService', () => {
     await expect(
       service.addToCart('biz-1', '22177', 'item-1', 1),
     ).resolves.toEqual({ success: false, reason: 'item_unavailable' });
+  });
+
+  it('refuse un item_id invalide sans interroger la base', async () => {
+    await expect(
+      service.addToCart('biz-1', '22177', 'thieb-yapp-id', 1),
+    ).resolves.toEqual({ success: false, reason: 'item_not_found' });
+
+    expect(findById).toHaveBeenCalledWith('biz-1', 'thieb-yapp-id');
+  });
+
+  it('enregistre une note optionnelle', async () => {
+    mutateSession.mockImplementation(async (_b, _p, mutate) => {
+      const session = {
+        cart: [],
+        delivery_info: null,
+        order_note: null,
+        messages: [],
+        last_activity: '',
+      };
+      mutate(session);
+      return session;
+    });
+
+    await expect(
+      service.setOrderNote('biz-1', '22177', 'Sans oignons'),
+    ).resolves.toEqual({
+      success: true,
+      order_note: 'Sans oignons',
+    });
   });
 });

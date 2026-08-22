@@ -21,4 +21,7 @@ export class DeliveryZone {
 
   @Column({ name: 'zone_name' })
   zoneName!: string;
+
+  @Column({ name: 'delivery_fee', type: 'numeric', default: () => '0' })
+  deliveryFee!: string;
 }

@@ -30,6 +30,6 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(restaurantOrderingModuleDefinition.getTools()).toEqual(
       ORDERING_TOOLS,
     );
-    expect(restaurantOrderingModuleDefinition.getTools()).toHaveLength(8);
+    expect(restaurantOrderingModuleDefinition.getTools()).toHaveLength(9);
   });
 });

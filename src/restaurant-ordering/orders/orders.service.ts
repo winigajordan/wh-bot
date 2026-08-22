@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConversationSessionService } from '../../conversation/conversation-session.service';
-import { SessionCartItem } from '../../conversation/session.types';
+import { SessionCartItem, SessionDeliveryInfo } from '../../conversation/session.types';
 import { CartService } from '../cart/cart.service';
+import { DeliveryZonesService } from '../delivery-zones/delivery-zones.service';
 import { MenuService } from '../menu/menu.service';
 import { OrderStatusHistory } from './entities/order-status-history.entity';
 import { Order } from './entities/order.entity';
@@ -24,6 +25,7 @@ export class OrdersService {
     private readonly sessionService: ConversationSessionService,
     private readonly cartService: CartService,
     private readonly menuService: MenuService,
+    private readonly deliveryZonesService: DeliveryZonesService,
   ) {}
 
   async confirmOrder(
@@ -31,7 +33,7 @@ export class OrdersService {
     clientPhone: string,
     confirmedByClient: boolean,
   ): Promise<
-    | { success: true; order_number: string; total: number }
+    | { success: true; order_number: string; subtotal: number; delivery_fee: number; total: number }
     | {
         success: false;
         reason:
@@ -75,6 +77,15 @@ export class OrdersService {
       businessId,
       clientPhone,
     );
+    const deliveryFee = await this.resolveDeliveryFee(
+      businessId,
+      session.delivery_info,
+    );
+    if (deliveryFee === null) {
+      return { success: false, reason: 'delivery_not_set' };
+    }
+
+    const total = summary.subtotal + deliveryFee;
     const orderNumber = await this.generateOrderNumber(businessId);
 
     const order = await this.orderRepo.save(
@@ -95,8 +106,10 @@ export class OrdersService {
             ? (session.delivery_info.address_text ?? null)
             : null,
         deliveryZoneId: session.delivery_info.zone_id ?? null,
-        total: summary.subtotal.toFixed(2),
+        deliveryFee: deliveryFee.toFixed(2),
+        total: total.toFixed(2),
         status: 'received',
+        note: session.order_note,
       }),
     );
 
@@ -112,7 +125,9 @@ export class OrdersService {
     return {
       success: true,
       order_number: orderNumber,
-      total: summary.subtotal,
+      total,
+      delivery_fee: deliveryFee,
+      subtotal: summary.subtotal,
     };
   }
 
@@ -125,6 +140,7 @@ export class OrdersService {
         found: true;
         order_number: string;
         status: string;
+        note: string | null;
         history: { status: string; changed_at: string }[];
       }
     | { found: false }
@@ -146,6 +162,7 @@ export class OrdersService {
       found: true,
       order_number: order.orderNumber,
       status: order.status,
+      note: order.note,
       history: history.map((entry) => ({
         status: entry.status,
         changed_at: entry.changedAt.toISOString(),
@@ -193,6 +210,27 @@ export class OrdersService {
     }
 
     return invalid;
+  }
+
+  private async resolveDeliveryFee(
+    businessId: string,
+    deliveryInfo: SessionDeliveryInfo,
+  ): Promise<number | null> {
+    if (deliveryInfo.mode === 'pickup') {
+      return 0;
+    }
+
+    const zoneId = deliveryInfo.zone_id;
+    if (!zoneId) {
+      return null;
+    }
+
+    const zone = await this.deliveryZonesService.findById(businessId, zoneId);
+    if (!zone) {
+      return null;
+    }
+
+    return Number(zone.deliveryFee);
   }
 
   private async generateOrderNumber(businessId: string): Promise<string> {

@@ -15,8 +15,8 @@ import { ConfigService } from '@nestjs/config';
 import { timingSafeEqual } from 'crypto';
 import type { Request } from 'express';
 import { BusinessesService } from '../businesses/businesses.service';
-import { ConversationOrchestratorService } from '../conversation/conversation-orchestrator.service';
-import { WhatsappClientService } from '../whatsapp-client/whatsapp-client.service';
+import { ConversationDebounceService } from '../conversation-queue/conversation-debounce.service';
+import { ConversationSessionService } from '../conversation/conversation-session.service';
 import { parseIncomingTextMessages } from './parse-whatsapp-webhook.util';
 import { verifyWebhookSignature } from './webhook-signature.util';
 
@@ -36,8 +36,8 @@ export class WebhookController {
   constructor(
     private readonly config: ConfigService,
     private readonly businessesService: BusinessesService,
-    private readonly conversationOrchestrator: ConversationOrchestratorService,
-    private readonly whatsappClient: WhatsappClientService,
+    private readonly sessionService: ConversationSessionService,
+    private readonly debounceService: ConversationDebounceService,
   ) {}
 
   @Get('whatsapp')
@@ -97,24 +97,21 @@ export class WebhookController {
       }
 
       try {
-        const reply = await this.conversationOrchestrator.handleIncomingMessage(
-          business,
+        await this.sessionService.appendUserMessage(
+          business.id,
           message.from,
           message.text,
         );
-
-        if (reply) {
-          await this.whatsappClient.sendTextMessage(
-            message.phoneNumberId,
-            message.from,
-            reply,
-          );
-        }
+        await this.debounceService.scheduleProcessing({
+          businessId: business.id,
+          clientPhone: message.from,
+          phoneNumberId: message.phoneNumberId,
+        });
       } catch (error) {
         const errMessage =
           error instanceof Error ? error.message : String(error);
         this.logger.error(
-          `Orchestrateur échoué pour ${business.id} : ${errMessage}`,
+          `Planification conversation échouée pour ${business.id} : ${errMessage}`,
         );
       }
 

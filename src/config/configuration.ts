@@ -22,4 +22,10 @@ export default () => ({
     apiKey: process.env.ANTHROPIC_API_KEY || '',
     model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
   },
+  conversation: {
+    debounceDelayMs: parseInt(
+      process.env.CONVERSATION_DEBOUNCE_DELAY_MS || '2500',
+      10,
+    ),
+  },
 });

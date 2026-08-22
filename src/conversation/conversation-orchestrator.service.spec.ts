@@ -100,11 +100,18 @@ describe('ConversationOrchestratorService', () => {
     }));
     getSession.mockResolvedValue({ messages });
 
-    await service.handleIncomingMessage(business, '221779876543', 'Salut');
+    await service.processConversation(business, '221779876543');
 
     const sent = generateReply.mock.calls[0][1] as { content: string }[];
     expect(sent).toHaveLength(20);
     expect(sent[0].content).toBe('m4');
     expect(sent.at(-1)?.content).toBe('m23');
+  });
+
+  it('processConversation ne ré-append pas le message utilisateur', async () => {
+    await service.processConversation(business, '221779876543');
+
+    expect(appendUserMessage).not.toHaveBeenCalled();
+    expect(generateReply).toHaveBeenCalled();
   });
 });

@@ -10,6 +10,7 @@ describe('RestaurantOrderingToolsService', () => {
   const getMenu = jest.fn();
   const addToCart = jest.fn();
   const getZoneNames = jest.fn();
+  const listZones = jest.fn();
   const matchZone = jest.fn();
   const setDeliveryInfo = jest.fn();
   const confirmOrder = jest.fn();
@@ -20,6 +21,7 @@ describe('RestaurantOrderingToolsService', () => {
     getMenu.mockReset();
     addToCart.mockReset();
     getZoneNames.mockReset();
+    listZones.mockReset();
     matchZone.mockReset();
     setDeliveryInfo.mockReset();
     confirmOrder.mockReset();
@@ -31,7 +33,7 @@ describe('RestaurantOrderingToolsService', () => {
         { provide: CartService, useValue: { addToCart, setDeliveryInfo } },
         {
           provide: DeliveryZonesService,
-          useValue: { getZoneNames, matchZone },
+          useValue: { getZoneNames, listZones, matchZone },
         },
         { provide: OrdersService, useValue: { confirmOrder } },
       ],
@@ -62,8 +64,12 @@ describe('RestaurantOrderingToolsService', () => {
     expect(addToCart).toHaveBeenCalledWith('biz-1', '22177', 'item-1', 2, []);
   });
 
-  it('valide set_delivery_info en livraison', async () => {
-    matchZone.mockResolvedValue({ id: 'zone-1', zoneName: 'Almadies' });
+  it('valide set_delivery_info en livraison avec frais', async () => {
+    matchZone.mockResolvedValue({
+      id: 'zone-1',
+      zoneName: 'Almadies',
+      deliveryFee: '1500.00',
+    });
     setDeliveryInfo.mockResolvedValue({});
 
     await expect(
@@ -72,7 +78,21 @@ describe('RestaurantOrderingToolsService', () => {
         { mode: 'delivery', address_text: 'Rue 12 Almadies' },
         context,
       ),
-    ).resolves.toEqual({ valid: true, matched_zone: 'Almadies' });
+    ).resolves.toEqual({
+      valid: true,
+      matched_zone: 'Almadies',
+      delivery_fee: 1500,
+    });
+
+    expect(setDeliveryInfo).toHaveBeenCalledWith(
+      'biz-1',
+      '22177',
+      expect.objectContaining({
+        mode: 'delivery',
+        zone_id: 'zone-1',
+        delivery_fee: 1500,
+      }),
+    );
   });
 
   it('rejette un tool inconnu', async () => {

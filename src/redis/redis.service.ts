@@ -84,6 +84,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.del(key);
   }
 
+  async tryAcquireLock(key: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.client.set(key, '1', 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
+  async releaseLock(key: string): Promise<void> {
+    await this.client.del(key);
+  }
+
   private describeUrl(options: Redis['options']): string {
     const host = options.host ?? 'localhost';
     const port = options.port ?? 6379;

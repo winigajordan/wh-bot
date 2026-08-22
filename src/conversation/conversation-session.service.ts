@@ -90,6 +90,12 @@ export class ConversationSessionService {
         data.delivery_info === null || typeof data.delivery_info === 'object'
           ? (data.delivery_info ?? null)
           : null,
+      order_note:
+        typeof data.order_note === 'string'
+          ? data.order_note
+          : data.order_note === null
+            ? null
+            : empty.order_note,
       last_activity:
         typeof data.last_activity === 'string'
           ? data.last_activity

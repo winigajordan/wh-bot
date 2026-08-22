@@ -39,6 +39,8 @@ export class RestaurantOrderingToolsService {
         return this.getDeliveryZones(context.businessId);
       case 'set_delivery_info':
         return this.setDeliveryInfo(context, input);
+      case 'set_order_note':
+        return this.setOrderNote(context, input);
       case 'confirm_order':
         return this.confirmOrder(context, input);
       case 'get_order_status':
@@ -90,7 +92,7 @@ export class RestaurantOrderingToolsService {
   }
 
   private async getDeliveryZones(businessId: string): Promise<unknown> {
-    const zones = await this.deliveryZonesService.getZoneNames(businessId);
+    const zones = await this.deliveryZonesService.listZones(businessId);
     return { zones };
   }
 
@@ -110,9 +112,9 @@ export class RestaurantOrderingToolsService {
       await this.cartService.setDeliveryInfo(
         context.businessId,
         context.clientPhone,
-        { mode: 'pickup' },
+        { mode: 'pickup', delivery_fee: 0 },
       );
-      return { valid: true };
+      return { valid: true, delivery_fee: 0 };
     }
 
     const addressText =
@@ -143,10 +145,28 @@ export class RestaurantOrderingToolsService {
         mode: 'delivery',
         address_text: addressText,
         zone_id: matchedZone.id,
+        zone_name: matchedZone.zoneName,
+        delivery_fee: Number(matchedZone.deliveryFee),
       },
     );
 
-    return { valid: true, matched_zone: matchedZone.zoneName };
+    return {
+      valid: true,
+      matched_zone: matchedZone.zoneName,
+      delivery_fee: Number(matchedZone.deliveryFee),
+    };
+  }
+
+  private async setOrderNote(
+    context: ToolExecutionContext,
+    input: Record<string, unknown>,
+  ): Promise<unknown> {
+    const note = typeof input.note === 'string' ? input.note : '';
+    return this.cartService.setOrderNote(
+      context.businessId,
+      context.clientPhone,
+      note,
+    );
   }
 
   private async confirmOrder(

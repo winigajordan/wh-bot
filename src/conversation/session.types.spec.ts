@@ -1,5 +1,6 @@
 import {
   CLAUDE_MESSAGE_WINDOW,
+  hasPendingUserMessages,
   sliceMessagesForClaude,
   SessionMessage,
 } from './session.types';
@@ -29,5 +30,25 @@ describe('sliceMessagesForClaude', () => {
     expect(sliceMessagesForClaude(messages, 2)).toEqual([
       { role: 'user', content: 'c' },
     ]);
+  });
+});
+
+describe('hasPendingUserMessages', () => {
+  it('retourne true si des messages user suivent le dernier assistant', () => {
+    expect(
+      hasPendingUserMessages([
+        { role: 'assistant', content: 'ok' },
+        { role: 'user', content: 'nouveau' },
+      ]),
+    ).toBe(true);
+  });
+
+  it('retourne false si le dernier message est assistant', () => {
+    expect(
+      hasPendingUserMessages([
+        { role: 'user', content: 'salut' },
+        { role: 'assistant', content: 'ok' },
+      ]),
+    ).toBe(false);
   });
 });
