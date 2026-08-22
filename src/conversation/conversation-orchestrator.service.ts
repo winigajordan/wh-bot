@@ -17,6 +17,14 @@ export class ConversationOrchestratorService {
     private readonly claudeService: ClaudeService,
   ) {}
 
+  private buildSystemPromptWithToolBudget(basePrompt: string): string {
+    const maxIterations = this.claudeService.getToolMaxIterations();
+    return [
+      basePrompt,
+      `Contrainte outils : au maximum ${maxIterations} tours d’appel d’outils pour produire ta réponse. Si tu n’as plus assez de tours, réponds au client avec les infos déjà obtenues — ne laisse jamais le client sans réponse.`,
+    ].join('\n');
+  }
+
   async handleIncomingMessage(
     business: Business,
     from: string,
@@ -35,7 +43,9 @@ export class ConversationOrchestratorService {
     }
 
     const moduleDefinition = this.moduleRegistry.resolve(moduleKey);
-    const systemPrompt = moduleDefinition.buildSystemPrompt(business);
+    const systemPrompt = this.buildSystemPromptWithToolBudget(
+      moduleDefinition.buildSystemPrompt(business),
+    );
     const tools = moduleDefinition.getTools();
     const windowedMessages = sliceMessagesForClaude(session.messages);
 

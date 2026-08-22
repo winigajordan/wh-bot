@@ -29,6 +29,9 @@ describe('ClaudeService', () => {
               if (key === 'anthropic.model') {
                 return 'claude-sonnet-4-6';
               }
+              if (key === 'anthropic.toolMaxIterations') {
+                return 5;
+              }
               return undefined;
             },
           },

@@ -29,6 +29,18 @@ export class ClaudeService {
       this.config.get<string>('anthropic.model') ?? 'claude-sonnet-4-6';
   }
 
+  getToolMaxIterations(): number {
+    const configured = this.config.get<number>('anthropic.toolMaxIterations');
+    if (
+      typeof configured === 'number' &&
+      Number.isInteger(configured) &&
+      configured >= 1
+    ) {
+      return configured;
+    }
+    return 5;
+  }
+
   async generateReply(
     systemPrompt: string,
     messages: ClaudeChatMessage[],
@@ -41,6 +53,7 @@ export class ClaudeService {
         messages,
         tools,
         executeTool,
+        this.getToolMaxIterations(),
       );
     }
 
@@ -52,7 +65,7 @@ export class ClaudeService {
     messages: ClaudeChatMessage[],
     tools: ClaudeToolDefinition[],
     executeTool: ToolExecutor,
-    maxIterations = 5,
+    maxIterations: number,
   ): Promise<string> {
     const anthropicTools = this.toAnthropicTools(tools);
     const conversation: AnthropicMessageParam[] = messages.map((message) => ({

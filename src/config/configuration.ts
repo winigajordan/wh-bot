@@ -21,6 +21,10 @@ export default () => ({
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY || '',
     model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+    toolMaxIterations: parseInt(
+      process.env.CLAUDE_TOOL_MAX_ITERATIONS || '5',
+      10,
+    ),
   },
   conversation: {
     debounceDelayMs: parseInt(

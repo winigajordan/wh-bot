@@ -14,6 +14,7 @@ describe('ConversationOrchestratorService', () => {
   const appendAssistantMessage = jest.fn();
   const resolve = jest.fn();
   const generateReply = jest.fn();
+  const getToolMaxIterations = jest.fn();
   const buildSystemPrompt = jest.fn();
   const getTools = jest.fn();
   const executeTool = jest.fn();
@@ -32,6 +33,7 @@ describe('ConversationOrchestratorService', () => {
     appendAssistantMessage.mockReset();
     resolve.mockReset();
     generateReply.mockReset();
+    getToolMaxIterations.mockReset();
     buildSystemPrompt.mockReset();
     getTools.mockReset();
     executeTool.mockReset();
@@ -44,6 +46,7 @@ describe('ConversationOrchestratorService', () => {
     getTools.mockReturnValue(ORDERING_TOOLS);
     resolve.mockReturnValue({ buildSystemPrompt, getTools });
     generateReply.mockResolvedValue('Bonjour, je vous écoute.');
+    getToolMaxIterations.mockReturnValue(5);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -61,7 +64,10 @@ describe('ConversationOrchestratorService', () => {
           provide: ModuleToolRegistryService,
           useValue: { execute: executeTool },
         },
-        { provide: ClaudeService, useValue: { generateReply } },
+        {
+          provide: ClaudeService,
+          useValue: { generateReply, getToolMaxIterations },
+        },
       ],
     }).compile();
 
@@ -81,11 +87,12 @@ describe('ConversationOrchestratorService', () => {
     expect(resolve).toHaveBeenCalledWith('restaurant_ordering');
     expect(buildSystemPrompt).toHaveBeenCalledWith(business);
     expect(generateReply).toHaveBeenCalledWith(
-      'prompt resto',
+      expect.stringContaining('au maximum 5 tours'),
       [{ role: 'user', content: 'Salut' }],
       ORDERING_TOOLS,
       expect.any(Function),
     );
+    expect(generateReply.mock.calls[0][0]).toContain('prompt resto');
     expect(appendAssistantMessage).toHaveBeenCalledWith(
       'biz-1',
       '221779876543',
