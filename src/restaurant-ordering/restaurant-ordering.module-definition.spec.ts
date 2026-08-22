@@ -27,6 +27,16 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(prompt).toContain('+221781234567');
   });
 
+  it('demande une présentation comme assistant virtuel au premier message', () => {
+    const prompt =
+      restaurantOrderingModuleDefinition.buildSystemPrompt(business);
+
+    expect(prompt).toContain('assistant virtuel');
+    expect(prompt).toContain('Premier message');
+    expect(prompt).toMatch(/première réponse/i);
+    expect(prompt).toContain('Les délices de Jordan');
+  });
+
   it('annonce que menu et commande ne sont pas encore disponibles', () => {
     const prompt =
       restaurantOrderingModuleDefinition.buildSystemPrompt(business);

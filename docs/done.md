@@ -9,6 +9,27 @@ Format d’un bloc :
 
 ##########
 
+## Premier message : présentation assistant virtuel
+
+Date : 22 août 2026, 11:30
+
+### Comportement
+
+- Dans le system prompt `restaurant_ordering`, consigne explicite pour la **première réponse** : Claude doit se présenter brièvement comme l'assistant virtuel du restaurant, puis répondre au client.
+- L'identité de base du prompt dit désormais « assistant virtuel WhatsApp ».
+
+### Fichiers
+
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.spec.ts`
+
+### Non fait
+
+- Détection côté orchestrateur (le prompt s'appuie sur l'historique : aucun message assistant = premier message)
+- Persist Postgres
+
+##########
+
 ## Fenêtre glissante Claude (20 messages)
 
 Date : 18 août 2026, 04:28

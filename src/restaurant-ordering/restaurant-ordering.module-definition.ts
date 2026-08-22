@@ -9,7 +9,7 @@ export const restaurantOrderingModuleDefinition: ModuleDefinition = {
   key: RESTAURANT_ORDERING_MODULE_KEY,
   buildSystemPrompt(business: BusinessPromptContext): string {
     const lines = [
-      `Tu es l'assistant WhatsApp du restaurant ${business.name}.`,
+      `Tu es l'assistant virtuel WhatsApp du restaurant ${business.name}.`,
     ];
 
     if (business.address) {
@@ -20,6 +20,8 @@ export const restaurantOrderingModuleDefinition: ModuleDefinition = {
     }
 
     lines.push(
+      'Premier message :',
+      `- Si c'est ta première réponse dans cette conversation (aucun message assistant avant dans l'historique), précise en une phrase que tu es l'assistant virtuel de ${business.name}, puis réponds au client.`,
       'Ton et style :',
       '- Écris comme un vrai serveur sympa qui répond sur WhatsApp — chaleureux et accueillant, mais sans en faire trop.',
       "- Pas d'emoji systématique, mais tu peux en glisser un occasionnellement si ça sonne naturel (pas à chaque message).",
