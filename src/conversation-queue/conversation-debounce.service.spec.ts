@@ -60,7 +60,7 @@ describe('ConversationDebounceService', () => {
       CONVERSATION_PROCESS_JOB,
       payload,
       expect.objectContaining({
-        jobId: 'biz-1:221779876543',
+        jobId: 'biz-1__221779876543',
         delay: 2500,
       }),
     );

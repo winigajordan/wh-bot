@@ -9,6 +9,46 @@ Format d’un bloc :
 
 ##########
 
+## Debounce + queue BullMQ (messages simultanés)
+
+Date : 22 août 2026, 13:12
+
+### Problème
+
+Rafales WhatsApp sur la même conversation → traitements parallèles sur la session Redis (race conditions panier, réponses dupliquées / désordonnées).
+
+### Comportement
+
+- Webhook : `appendUserMessage` immédiat, puis `ConversationDebounceService.scheduleProcessing` — **plus d’appel direct** à l’orchestrateur ni Send API
+- Job BullMQ `jobId = {business_id}:{client_phone}`, délai configurable (`CONVERSATION_DEBOUNCE_DELAY_MS`, défaut 2500 ms) — reprogrammation si nouveau message avant expiration (debounce)
+- Worker `ConversationProcessor` : verrou Redis `SET NX` → `processConversation` → `sendTextMessage` → reprogrammation si messages user en attente après traitement
+- Orchestrateur scindé : `handleIncomingMessage` (append + process, tests/compat) vs `processConversation` (lecture session → Claude → append assistant, sans re-append user)
+- `hasPendingUserMessages()` pour détecter les messages reçus pendant le traitement Claude
+
+### Fichiers
+
+- `src/conversation-queue/conversation-queue.module.ts` — BullMQ (`REDIS_URL`), worker, export debounce
+- `src/conversation-queue/conversation-debounce.service.ts`
+- `src/conversation-queue/conversation.processor.ts`
+- `src/conversation-queue/conversation-queue.constants.ts`
+- `src/conversation-queue/conversation-job.types.ts`
+- `src/conversation/conversation-orchestrator.service.ts` — `processConversation`
+- `src/conversation/session.types.ts` — `hasPendingUserMessages`
+- `src/redis/redis.service.ts` — `tryAcquireLock` / `releaseLock`
+- `src/businesses/businesses.service.ts` — `findById`
+- `src/webhook/webhook.controller.ts` — debounce au lieu d’orchestrateur direct
+- `src/config/configuration.ts` — `conversation.debounceDelayMs`
+- `.env.example` — `CONVERSATION_DEBOUNCE_DELAY_MS`
+- Tests : `conversation-debounce.service.spec.ts`, `conversation.processor.spec.ts`, `webhook.controller.spec.ts`, `session.types.spec.ts`, `conversation-orchestrator.service.spec.ts`
+- Packages : `bullmq`, `@nestjs/bullmq`
+
+### Non fait (volontaire)
+
+- Validation manuelle bout-en-bout des 3 scénarios doc (`whatsapp-bot-debounce-queue.md` §7) — à faire avec ngrok + vrais messages
+- Persist Postgres `conversations` / `messages` — inchangé (reporté)
+
+##########
+
 ## Frais de livraison par zone
 
 Date : 22 août 2026, 12:50
