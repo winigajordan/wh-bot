@@ -10,6 +10,9 @@ export type ClaudeChatMessage = {
 
 type AnthropicMessageParam = Anthropic.MessageParam;
 
+const TOOL_LOOP_EXHAUSTED_USER_MESSAGE =
+  'Tu as atteint la limite d’appels d’outils pour cette réponse. Réponds maintenant au client en texte avec les informations déjà obtenues. N’utilise plus d’outils.';
+
 export type ToolExecutor = (
   name: string,
   input: Record<string, unknown>,
@@ -107,7 +110,20 @@ export class ClaudeService {
     }
 
     this.logger.warn('Boucle tools Claude : limite d’itérations atteinte');
-    return '';
+    return this.generateFallbackReplyWithoutTools(systemPrompt, conversation);
+  }
+
+  private async generateFallbackReplyWithoutTools(
+    systemPrompt: string,
+    conversation: AnthropicMessageParam[],
+  ): Promise<string> {
+    conversation.push({
+      role: 'user',
+      content: TOOL_LOOP_EXHAUSTED_USER_MESSAGE,
+    });
+
+    const response = await this.createMessage(systemPrompt, conversation);
+    return this.extractText(response.content);
   }
 
   private async generateReplyOnce(

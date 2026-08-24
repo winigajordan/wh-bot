@@ -123,4 +123,74 @@ describe('ClaudeService', () => {
     });
     expect(create).toHaveBeenCalledTimes(2);
   });
+
+  it('force une réponse texte sans tools quand la limite est atteinte', async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ClaudeService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (key: string) => {
+              if (key === 'anthropic.apiKey') return 'test-key';
+              if (key === 'anthropic.model') return 'claude-sonnet-4-6';
+              if (key === 'anthropic.toolMaxIterations') return 1;
+              return undefined;
+            },
+          },
+        },
+      ],
+    }).compile();
+
+    const limitedService = module.get(ClaudeService);
+
+    create
+      .mockResolvedValueOnce({
+        stop_reason: 'tool_use',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_1',
+            name: 'get_menu',
+            input: {},
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        stop_reason: 'end_turn',
+        content: [
+          {
+            type: 'text',
+            text: 'Voici ce que j’ai pour l’instant, on continue ?',
+          },
+        ],
+      });
+
+    const executeTool = jest.fn().mockResolvedValue({ categories: [] });
+    const tools = [
+      {
+        name: 'get_menu',
+        description: 'Menu',
+        input_schema: { type: 'object', properties: {} },
+      },
+    ];
+
+    await expect(
+      limitedService.generateReply(
+        'prompt',
+        [{ role: 'user', content: 'Je commande' }],
+        tools,
+        executeTool,
+      ),
+    ).resolves.toBe('Voici ce que j’ai pour l’instant, on continue ?');
+
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create.mock.calls[0][0].tools).toBeDefined();
+    expect(create.mock.calls[1][0].tools).toBeUndefined();
+    expect(create.mock.calls[1][0].messages.at(-1)).toEqual({
+      role: 'user',
+      content:
+        'Tu as atteint la limite d’appels d’outils pour cette réponse. Réponds maintenant au client en texte avec les informations déjà obtenues. N’utilise plus d’outils.',
+    });
+  });
 });
