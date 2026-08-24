@@ -9,6 +9,62 @@ Format d’un bloc :
 
 ##########
 
+## Indicateur typing + accusé de lecture WhatsApp
+
+Date : 24 août 2026, 19:15
+
+### Comportement
+
+- Session Redis : `last_whatsapp_message_id` (wamid) mis à jour à chaque `appendUserMessage` depuis le webhook
+- Worker `ConversationProcessor` : après verrou, appelle `markAsReadWithTyping` avant Claude
+- `WhatsappClientService.markAsReadWithTyping` — POST Meta `status: read` + `typing_indicator`; échec loggé, jamais bloquant
+
+### Fichiers
+
+- `src/whatsapp-client/whatsapp-client.service.ts`
+- `src/conversation/session.types.ts`
+- `src/conversation/conversation-session.service.ts`
+- `src/webhook/webhook.controller.ts`
+- `src/conversation-queue/conversation.processor.ts`
+- Tests : `whatsapp-client`, `conversation-session`, `conversation.processor`, `webhook.controller`
+- `docs/test-manuel-bot.md` — section UX
+
+### Non fait (volontaire)
+
+- Validation manuelle coches bleues + typing sur téléphone
+
+##########
+
+## Stabilisation bot — clear_cart + limite tools
+
+Date : 24 août 2026, 19:00
+
+### Comportement
+
+- Tool `clear_cart` : vide panier + reset `delivery_info` + `order_note` ; `cart_already_empty` si déjà vide
+- Prompt resto mis à jour (vider panier vs retirer un item)
+- `CLAUDE_TOOL_MAX_ITERATIONS` défaut passé à **8** (`.env`, config, fallback code)
+- Fallback déjà en place : dernier appel Claude **sans tools** si limite atteinte
+- Checklist tests manuels : `docs/test-manuel-bot.md`
+- `avancement.md` : section stabilisation
+
+### Fichiers
+
+- `src/restaurant-ordering/cart/cart.service.ts` — `clearCart`
+- `src/restaurant-ordering/tools/ordering.tools.ts` — `CLEAR_CART_TOOL`
+- `src/restaurant-ordering/tools/restaurant-ordering-tools.service.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+- `src/config/configuration.ts`, `.env.example`, tests cart + tools + module-definition
+- `docs/test-manuel-bot.md`, `docs/avancement.md`
+
+### Non fait (volontaire)
+
+- Exécution de la checklist manuelle (à faire côté utilisateur avec ngrok)
+- Logs détaillés des tools par tour Claude
+- Phase 5 dashboard
+
+##########
+
 ## Debounce + queue BullMQ (messages simultanés)
 
 Date : 22 août 2026, 13:12

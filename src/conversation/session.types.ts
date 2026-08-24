@@ -27,6 +27,8 @@ export type ConversationSession = {
   delivery_info: SessionDeliveryInfo | null;
   /** Note optionnelle pour la commande (allergies, instructions…). */
   order_note: string | null;
+  /** wamid du dernier message entrant WhatsApp (accusé de lecture + typing). */
+  last_whatsapp_message_id: string | null;
   last_activity: string;
 };
 
@@ -75,6 +77,7 @@ export function createEmptySession(
     cart: [],
     delivery_info: null,
     order_note: null,
+    last_whatsapp_message_id: null,
     last_activity: lastActivity,
   };
 }

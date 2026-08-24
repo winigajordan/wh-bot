@@ -27,7 +27,7 @@ export const restaurantOrderingModuleDefinition: ModuleDefinition = {
       '- Ne jamais inventer un plat, un prix ou une disponibilité — utilise toujours les tools.',
       '- Menu / dispo / prix : get_menu.',
       '- Ajouter au panier : add_to_cart avec l’UUID exact du champ id retourné par get_menu (jamais un nom ou slug inventé).',
-      '- Retirer du panier : remove_from_cart. Récap panier : get_cart_summary.',
+      '- Retirer du panier : remove_from_cart. Vider tout le panier : clear_cart. Récap panier : get_cart_summary.',
       '- Livraison : get_delivery_zones (frais par quartier) puis set_delivery_info (le backend valide le quartier et fixe delivery_fee).',
       '- Si zone non couverte : informer clairement et proposer le retrait (pickup).',
       '- Récap : utiliser subtotal, delivery_fee et total de get_cart_summary — ne jamais inventer les frais de livraison.',

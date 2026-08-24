@@ -76,4 +76,38 @@ describe('WhatsappClientService', () => {
       service.sendTextMessage('123456789', '221771234567', 'test'),
     ).resolves.toBeUndefined();
   });
+
+  it('appelle read + typing indicator', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+    });
+
+    await service.markAsReadWithTyping('123456789', 'wamid.test');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://graph.facebook.com/v21.0/123456789/messages',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: 'wamid.test',
+          typing_indicator: { type: 'text' },
+        }),
+      }),
+    );
+  });
+
+  it('ne lève pas si read/typing échoue', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => '{"error":"bad request"}',
+    });
+
+    await expect(
+      service.markAsReadWithTyping('123456789', 'wamid.test'),
+    ).resolves.toBeUndefined();
+  });
 });

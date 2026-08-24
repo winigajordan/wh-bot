@@ -32,6 +32,16 @@ export const REMOVE_FROM_CART_TOOL: ClaudeToolDefinition = {
   },
 };
 
+export const CLEAR_CART_TOOL: ClaudeToolDefinition = {
+  name: 'clear_cart',
+  description:
+    'Vide entièrement le panier (items, livraison et note en cours). À utiliser si le client veut recommencer ou annuler sa commande en cours.',
+  input_schema: {
+    type: 'object',
+    properties: {},
+  },
+};
+
 export const GET_CART_SUMMARY_TOOL: ClaudeToolDefinition = {
   name: 'get_cart_summary',
   description:
@@ -117,6 +127,7 @@ export const ORDERING_TOOLS: ClaudeToolDefinition[] = [
   GET_MENU_TOOL,
   ADD_TO_CART_TOOL,
   REMOVE_FROM_CART_TOOL,
+  CLEAR_CART_TOOL,
   GET_CART_SUMMARY_TOOL,
   GET_DELIVERY_ZONES_TOOL,
   SET_DELIVERY_INFO_TOOL,

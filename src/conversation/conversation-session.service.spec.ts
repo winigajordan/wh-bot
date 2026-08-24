@@ -46,6 +46,26 @@ describe('ConversationSessionService', () => {
     );
   });
 
+  it('enregistre le wamid du dernier message entrant', async () => {
+    getSession.mockResolvedValue(null);
+
+    const session = await service.appendUserMessage(
+      'biz-1',
+      '221779876543',
+      'Bonjour',
+      'wamid.abc123',
+    );
+
+    expect(session.last_whatsapp_message_id).toBe('wamid.abc123');
+    expect(setSession).toHaveBeenCalledWith(
+      'session:biz-1:221779876543',
+      expect.objectContaining({
+        last_whatsapp_message_id: 'wamid.abc123',
+      }),
+      SESSION_TTL_SECONDS,
+    );
+  });
+
   it('append à une session existante et rafraîchit le TTL', async () => {
     getSession.mockResolvedValue({
       messages: [{ role: 'user', content: 'Salut' }],

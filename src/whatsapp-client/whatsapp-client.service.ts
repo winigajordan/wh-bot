@@ -53,4 +53,46 @@ export class WhatsappClientService {
       `Send API OK → ${to} via phone_number_id=${phoneNumberId}`,
     );
   }
+
+  async markAsReadWithTyping(
+    phoneNumberId: string,
+    messageId: string,
+  ): Promise<void> {
+    const accessToken = this.config.get<string>('whatsapp.accessToken') ?? '';
+
+    if (!accessToken) {
+      this.logger.error(
+        'WHATSAPP_ACCESS_TOKEN manquant — read/typing ignoré',
+      );
+      return;
+    }
+
+    const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        status: 'read',
+        message_id: messageId,
+        typing_indicator: { type: 'text' },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      this.logger.error(
+        `Read/typing API échec (${response.status}) phone_number_id=${phoneNumberId} message_id=${messageId}: ${errorBody}`,
+      );
+      return;
+    }
+
+    this.logger.log(
+      `Read/typing OK message_id=${messageId} via phone_number_id=${phoneNumberId}`,
+    );
+  }
 }

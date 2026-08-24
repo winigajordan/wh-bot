@@ -58,6 +58,17 @@ export class ConversationProcessor extends WorkerHost {
         return;
       }
 
+      const session = await this.sessionService.getSession(
+        businessId,
+        clientPhone,
+      );
+      if (session.last_whatsapp_message_id) {
+        await this.whatsappClient.markAsReadWithTyping(
+          phoneNumberId,
+          session.last_whatsapp_message_id,
+        );
+      }
+
       const reply = await this.orchestrator.processConversation(
         business,
         clientPhone,
@@ -71,11 +82,11 @@ export class ConversationProcessor extends WorkerHost {
         );
       }
 
-      const session = await this.sessionService.getSession(
+      const updatedSession = await this.sessionService.getSession(
         businessId,
         clientPhone,
       );
-      if (hasPendingUserMessages(session.messages)) {
+      if (hasPendingUserMessages(updatedSession.messages)) {
         await this.debounceService.scheduleProcessing(job.data);
       }
     } catch (error) {

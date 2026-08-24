@@ -4,7 +4,20 @@ Suivi de ce qui est fait et de ce qui reste. Photo de l’architecture : [etat-a
 
 Tout le code vit dans `whatsapp-bot/`. L’auth **login/JWT** est reportée (la table `users` existe déjà pour le schéma).
 
-Dernière mise à jour : 22 août 2026.
+Dernière mise à jour : 24 août 2026.
+
+---
+
+## Stabilisation bot (en cours)
+
+Voir checklist : [test-manuel-bot.md](./test-manuel-bot.md).
+
+- [x] Tool `clear_cart`
+- [x] Limite tools configurable + prompt budget + fallback texte sans tools
+- [x] Debounce BullMQ
+- [x] Accusé de lecture + indicateur typing WhatsApp
+- [ ] Validation manuelle checklist complète
+- [ ] `WHATSAPP_ACCESS_TOKEN` System User niveau Business Portfolio
 
 ---
 
@@ -84,14 +97,14 @@ Dernière mise à jour : 22 août 2026.
 ### Phase 4 — Panier / commandes (sous `restaurant-ordering`) — cœur fait
 
 - [x] `CartService` (panier Redis via session)
-- [x] Tools : `add_to_cart`, `remove_from_cart`, `get_cart_summary`
+- [x] Tools : `add_to_cart`, `remove_from_cart`, `clear_cart`, `get_cart_summary`
 - [x] `DeliveryZonesService` + matching quartier + seed (`npm run seed:zones`)
 - [x] Tools : `get_delivery_zones`, `set_delivery_info`
 - [x] `OrdersService` + `confirm_order` (revalidation stricte) + `get_order_status`
 - [x] Prompt resto : flow commande complet
 - [ ] WebSocket dashboard à la confirmation
 
-### Phase 5 — Dashboard (sans auth login pour l’instant) ← **prochaine étape**
+### Phase 5 — Dashboard (sans auth login pour l’instant) ← **après stabilisation bot**
 
 - [ ] App Angular
 - [ ] Écrans commandes / menu / zones / review
@@ -112,6 +125,6 @@ Voir specs §13. Pas de 2e module métier (`salon`, banque, école) pour le POC 
 ## Ordre
 
 **0 → 1 → 2** : fait (Phase 2 considérée suffisante sans persist Postgres).  
-**3 et 4** : prochaines, en parallèle possible.  
+**3 et 4** : cœur fait. **Stabilisation bot** : checklist manuelle puis Phase 5.  
 **Persist messages** : avant Phase 5 ou pilote, pas avant menu/panier.  
-**5** : dès que les endpoints 3–4 sont stables.
+**5** : dès que la checklist stabilisation est validée.

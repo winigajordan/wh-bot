@@ -23,6 +23,7 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(prompt).toContain('get_menu');
     expect(prompt).toContain('add_to_cart');
     expect(prompt).toContain('confirm_order');
+    expect(prompt).toContain('clear_cart');
     expect(prompt).toContain('Budget tools');
     expect(prompt).toMatch(/inventer/i);
   });
@@ -31,6 +32,6 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(restaurantOrderingModuleDefinition.getTools()).toEqual(
       ORDERING_TOOLS,
     );
-    expect(restaurantOrderingModuleDefinition.getTools()).toHaveLength(9);
+    expect(restaurantOrderingModuleDefinition.getTools()).toHaveLength(10);
   });
 });

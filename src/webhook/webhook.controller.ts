@@ -101,6 +101,7 @@ export class WebhookController {
           business.id,
           message.from,
           message.text,
+          message.messageId,
         );
         await this.debounceService.scheduleProcessing({
           businessId: business.id,

@@ -13,6 +13,7 @@ describe('RestaurantOrderingToolsService', () => {
   const listZones = jest.fn();
   const matchZone = jest.fn();
   const setDeliveryInfo = jest.fn();
+  const clearCart = jest.fn();
   const confirmOrder = jest.fn();
 
   const context = { businessId: 'biz-1', clientPhone: '22177' };
@@ -24,13 +25,14 @@ describe('RestaurantOrderingToolsService', () => {
     listZones.mockReset();
     matchZone.mockReset();
     setDeliveryInfo.mockReset();
+    clearCart.mockReset();
     confirmOrder.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RestaurantOrderingToolsService,
         { provide: MenuService, useValue: { getMenu } },
-        { provide: CartService, useValue: { addToCart, setDeliveryInfo } },
+        { provide: CartService, useValue: { addToCart, setDeliveryInfo, clearCart } },
         {
           provide: DeliveryZonesService,
           useValue: { getZoneNames, listZones, matchZone },
@@ -93,6 +95,16 @@ describe('RestaurantOrderingToolsService', () => {
         delivery_fee: 1500,
       }),
     );
+  });
+
+  it('exécute clear_cart', async () => {
+    clearCart.mockResolvedValue({ success: true });
+
+    await expect(service.execute('clear_cart', {}, context)).resolves.toEqual({
+      success: true,
+    });
+
+    expect(clearCart).toHaveBeenCalledWith('biz-1', '22177');
   });
 
   it('rejette un tool inconnu', async () => {

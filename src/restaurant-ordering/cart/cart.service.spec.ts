@@ -104,4 +104,43 @@ describe('CartService', () => {
       order_note: 'Sans oignons',
     });
   });
+
+  it('vide le panier et réinitialise livraison + note', async () => {
+    getSession.mockResolvedValue({
+      cart: [{ item_id: 'item-1', name: 'Thieb', price: 3500, quantity: 1, options: [] }],
+      delivery_info: { mode: 'delivery', delivery_fee: 1500 },
+      order_note: 'Sans piment',
+      messages: [],
+      last_activity: '',
+    });
+    mutateSession.mockResolvedValue({
+      cart: [],
+      delivery_info: null,
+      order_note: null,
+      messages: [],
+      last_activity: '',
+    });
+
+    await expect(service.clearCart('biz-1', '22177')).resolves.toEqual({
+      success: true,
+    });
+    expect(mutateSession).toHaveBeenCalled();
+  });
+
+  it('refuse clear_cart si le panier est déjà vide', async () => {
+    getSession.mockResolvedValue({
+      cart: [],
+      delivery_info: null,
+      order_note: null,
+      messages: [],
+      last_activity: '',
+    });
+
+    await expect(service.clearCart('biz-1', '22177')).resolves.toEqual({
+      success: false,
+      reason: 'cart_already_empty',
+    });
+
+    expect(mutateSession).not.toHaveBeenCalled();
+  });
 });

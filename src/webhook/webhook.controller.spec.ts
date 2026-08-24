@@ -133,6 +133,7 @@ describe('WebhookController', () => {
         'biz-fatou',
         '221779876543',
         'Salut',
+        'wamid.test',
       );
       expect(scheduleProcessing).toHaveBeenCalledWith({
         businessId: 'biz-fatou',

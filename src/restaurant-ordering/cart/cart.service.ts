@@ -159,6 +159,26 @@ export class CartService {
     });
   }
 
+  async clearCart(
+    businessId: string,
+    clientPhone: string,
+  ): Promise<
+    | { success: true }
+    | { success: false; reason: 'cart_already_empty' }
+  > {
+    const session = await this.sessionService.getSession(
+      businessId,
+      clientPhone,
+    );
+
+    if (session.cart.length === 0) {
+      return { success: false, reason: 'cart_already_empty' };
+    }
+
+    await this.clearCartAndDelivery(businessId, clientPhone);
+    return { success: true };
+  }
+
   private buildSummary(session: ConversationSession): CartSummary {
     const item_count = session.cart.reduce(
       (sum, item) => sum + item.quantity,

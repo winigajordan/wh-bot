@@ -30,6 +30,11 @@ export class RestaurantOrderingToolsService {
         return this.addToCart(context, input);
       case 'remove_from_cart':
         return this.removeFromCart(context, input);
+      case 'clear_cart':
+        return this.cartService.clearCart(
+          context.businessId,
+          context.clientPhone,
+        );
       case 'get_cart_summary':
         return this.cartService.getCartSummary(
           context.businessId,

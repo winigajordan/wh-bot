@@ -41,7 +41,7 @@ export class ClaudeService {
     ) {
       return configured;
     }
-    return 5;
+    return 8;
   }
 
   async generateReply(

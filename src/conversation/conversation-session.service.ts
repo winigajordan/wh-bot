@@ -25,8 +25,15 @@ export class ConversationSessionService {
     businessId: string,
     clientPhone: string,
     content: string,
+    whatsappMessageId?: string,
   ): Promise<ConversationSession> {
-    return this.appendMessage(businessId, clientPhone, 'user', content);
+    return this.appendMessage(
+      businessId,
+      clientPhone,
+      'user',
+      content,
+      whatsappMessageId,
+    );
   }
 
   async appendAssistantMessage(
@@ -55,11 +62,15 @@ export class ConversationSessionService {
     clientPhone: string,
     role: 'user' | 'assistant',
     content: string,
+    whatsappMessageId?: string,
   ): Promise<ConversationSession> {
     const key = buildSessionKey(businessId, clientPhone);
     const session = this.parseSession(await this.redis.getSession(key));
 
     session.messages.push({ role, content });
+    if (role === 'user' && whatsappMessageId) {
+      session.last_whatsapp_message_id = whatsappMessageId;
+    }
     session.last_activity = new Date().toISOString();
 
     this.logger.log(
@@ -96,6 +107,12 @@ export class ConversationSessionService {
           : data.order_note === null
             ? null
             : empty.order_note,
+      last_whatsapp_message_id:
+        typeof data.last_whatsapp_message_id === 'string'
+          ? data.last_whatsapp_message_id
+          : data.last_whatsapp_message_id === null
+            ? null
+            : empty.last_whatsapp_message_id,
       last_activity:
         typeof data.last_activity === 'string'
           ? data.last_activity

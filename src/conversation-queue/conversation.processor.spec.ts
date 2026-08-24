@@ -60,7 +60,7 @@ describe('ConversationProcessor', () => {
           useValue: { processConversation },
         },
         { provide: ConversationSessionService, useValue: { getSession } },
-        { provide: WhatsappClientService, useValue: { sendTextMessage } },
+        { provide: WhatsappClientService, useValue: { sendTextMessage, markAsReadWithTyping: jest.fn() } },
         {
           provide: ConversationDebounceService,
           useValue: { scheduleProcessing },
@@ -75,7 +75,77 @@ describe('ConversationProcessor', () => {
     processor = module.get(ConversationProcessor);
   });
 
+  it('appelle read + typing avant Claude', async () => {
+    const markAsReadWithTyping = jest.fn().mockResolvedValue(undefined);
+    getSession.mockResolvedValue({
+      messages: [{ role: 'user', content: 'Salut' }],
+      last_whatsapp_message_id: 'wamid.test',
+    });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ConversationProcessor,
+        { provide: BusinessesService, useValue: { findById } },
+        {
+          provide: ConversationOrchestratorService,
+          useValue: { processConversation },
+        },
+        { provide: ConversationSessionService, useValue: { getSession } },
+        {
+          provide: WhatsappClientService,
+          useValue: { sendTextMessage, markAsReadWithTyping },
+        },
+        {
+          provide: ConversationDebounceService,
+          useValue: { scheduleProcessing },
+        },
+        {
+          provide: RedisService,
+          useValue: { tryAcquireLock, releaseLock },
+        },
+      ],
+    }).compile();
+
+    processor = module.get(ConversationProcessor);
+
+    await processor.process({ data: payload } as never);
+
+    expect(markAsReadWithTyping).toHaveBeenCalledWith(
+      'phone-1',
+      'wamid.test',
+    );
+    expect(processConversation).toHaveBeenCalled();
+  });
+
   it('traite la conversation et envoie la réponse WhatsApp', async () => {
+    const markAsReadWithTyping = jest.fn().mockResolvedValue(undefined);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ConversationProcessor,
+        { provide: BusinessesService, useValue: { findById } },
+        {
+          provide: ConversationOrchestratorService,
+          useValue: { processConversation },
+        },
+        { provide: ConversationSessionService, useValue: { getSession } },
+        {
+          provide: WhatsappClientService,
+          useValue: { sendTextMessage, markAsReadWithTyping },
+        },
+        {
+          provide: ConversationDebounceService,
+          useValue: { scheduleProcessing },
+        },
+        {
+          provide: RedisService,
+          useValue: { tryAcquireLock, releaseLock },
+        },
+      ],
+    }).compile();
+
+    processor = module.get(ConversationProcessor);
+
     await processor.process({ data: payload } as never);
 
     expect(processConversation).toHaveBeenCalledWith(business, '221779876543');
