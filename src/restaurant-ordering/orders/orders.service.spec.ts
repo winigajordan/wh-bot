@@ -22,6 +22,7 @@ describe('OrdersService', () => {
   const getCartSummary = jest.fn();
   const clearCartAndDelivery = jest.fn();
   const findById = jest.fn();
+  const resolveSelectedOptions = jest.fn();
   const findZoneById = jest.fn();
   const eventEmit = jest.fn();
 
@@ -37,6 +38,7 @@ describe('OrdersService', () => {
     getCartSummary.mockReset();
     clearCartAndDelivery.mockReset();
     findById.mockReset();
+    resolveSelectedOptions.mockReset();
     findZoneById.mockReset();
     eventEmit.mockReset();
 
@@ -60,6 +62,12 @@ describe('OrdersService', () => {
       name: 'Thieb',
       price: '3500.00',
       available: true,
+      options: [],
+    });
+    resolveSelectedOptions.mockReturnValue({
+      success: true,
+      options: [],
+      extra: 0,
     });
 
     const module: TestingModule = await Test.createTestingModule({
@@ -94,7 +102,7 @@ describe('OrdersService', () => {
         },
         {
           provide: MenuService,
-          useValue: { findById },
+          useValue: { findById, resolveSelectedOptions },
         },
         {
           provide: DeliveryZonesService,

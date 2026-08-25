@@ -4,7 +4,7 @@ import { GET_MENU_TOOL } from './get-menu.tool';
 export const ADD_TO_CART_TOOL: ClaudeToolDefinition = {
   name: 'add_to_cart',
   description:
-    'Ajoute un ou plusieurs plats au panier en un seul appel. Passe toujours un tableau items (même pour 1 plat). Chaque item_id doit être l’UUID exact renvoyé par get_menu (champ id) — ne jamais inventer un identifiant. Ne jamais appeler add_to_cart une fois par plat : regroupe tout dans items.',
+    'Ajoute un ou plusieurs plats au panier en un seul appel. Passe toujours un tableau items (même pour 1 plat). Chaque item_id = UUID exact get_menu. Pour les plats avec options : passe options (noms exacts). Inclure TOUTES les options required avant d’appeler. Le prix des options est ajouté au plat. Ne jamais appeler add_to_cart une fois par plat.',
   input_schema: {
     type: 'object',
     properties: {
@@ -20,7 +20,8 @@ export const ADD_TO_CART_TOOL: ClaudeToolDefinition = {
             options: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Options/suppléments optionnels',
+              description:
+                'Sélections : name exact d’une option simple, OU nom d’une variante (choices[]) ex. "Fanta". Inclure une entrée pour chaque option required. Ne pas inventer de libellés hors get_menu.',
             },
           },
           required: ['item_id', 'quantity'],
@@ -62,7 +63,7 @@ export const CLEAR_CART_TOOL: ClaudeToolDefinition = {
 export const GET_CART_SUMMARY_TOOL: ClaudeToolDefinition = {
   name: 'get_cart_summary',
   description:
-    'Affiche le panier : items, subtotal, delivery_fee (0 en retrait), total, order_note.',
+    'Affiche le panier : items (name, price unitaire déjà options incluses, quantity, options[{name,price}]), subtotal, delivery_fee (0 en retrait), total, order_note.',
   input_schema: {
     type: 'object',
     properties: {},
@@ -115,7 +116,7 @@ export const SET_ORDER_NOTE_TOOL: ClaudeToolDefinition = {
 export const CONFIRM_ORDER_TOOL: ClaudeToolDefinition = {
   name: 'confirm_order',
   description:
-    'Finalise TOUTE la commande en un seul appel. confirmed_by_client doit être true. Tu peux passer items (UUIDs get_menu) pour fixer/revalider le panier au moment de la confirmation, et note optionnelle. Tous les item_id sont vérifiés en base : si un seul est invalide, la commande n’est pas créée. Ne pas appeler add_to_cart juste avant si tu fournis déjà items ici.',
+    'Finalise TOUTE la commande en un seul appel. confirmed_by_client doit être true. Tu peux passer items (UUIDs get_menu + options choisies) pour fixer/revalider le panier au moment de la confirmation, et note optionnelle. item_id et options sont vérifiés en base (options required manquantes = échec). Ne pas appeler add_to_cart juste avant si tu fournis déjà items ici.',
   input_schema: {
     type: 'object',
     properties: {
@@ -126,7 +127,7 @@ export const CONFIRM_ORDER_TOOL: ClaudeToolDefinition = {
       items: {
         type: 'array',
         description:
-          'Optionnel : liste complète des plats à commander (UUID get_menu). Si fourni, remplace le panier après validation stricte.',
+          'Optionnel : liste complète des plats à commander (UUID get_menu + options). Si fourni, remplace le panier après validation stricte.',
         minItems: 1,
         items: {
           type: 'object',
@@ -136,6 +137,8 @@ export const CONFIRM_ORDER_TOOL: ClaudeToolDefinition = {
             options: {
               type: 'array',
               items: { type: 'string' },
+              description:
+                'Sélections : name exact d’une option simple, OU nom d’une variante (choices[]) ex. "Fanta". Inclure une entrée pour chaque option required.',
             },
           },
           required: ['item_id', 'quantity'],

@@ -18,7 +18,14 @@ import { Order, OrderStatus } from './entities/order.entity';
 type InvalidCartItem = {
   item_id: string;
   name: string;
-  reason: 'item_not_found' | 'item_unavailable' | 'price_changed';
+  reason:
+    | 'item_not_found'
+    | 'item_unavailable'
+    | 'price_changed'
+    | 'invalid_options'
+    | 'missing_required_options';
+  missing_options?: string[];
+  invalid_options?: string[];
 };
 
 export type DashboardOrderDto = {
@@ -124,7 +131,15 @@ export class OrdersService {
             reason:
               entry.reason === 'item_unavailable'
                 ? 'item_unavailable'
-                : 'item_not_found',
+                : entry.reason === 'invalid_options'
+                  ? 'invalid_options'
+                  : entry.reason === 'missing_required_options'
+                    ? 'missing_required_options'
+                    : entry.reason === 'invalid_quantity'
+                      ? 'item_not_found'
+                      : 'item_not_found',
+            missing_options: entry.missing_options,
+            invalid_options: entry.invalid_options,
           })),
         };
       }
@@ -188,7 +203,28 @@ export class OrdersService {
           name: item.name,
           price: item.price,
           quantity: item.quantity,
-          options: item.options,
+          options: Array.isArray(item.options)
+            ? item.options.map((option) => ({
+                name:
+                  typeof option === 'object' &&
+                  option &&
+                  typeof (option as { name?: unknown }).name === 'string'
+                    ? (option as { name: string }).name
+                    : String(option),
+                price:
+                  typeof option === 'object' &&
+                  option &&
+                  typeof (option as { price?: unknown }).price === 'number'
+                    ? (option as { price: number }).price
+                    : 0,
+                choice:
+                  typeof option === 'object' &&
+                  option &&
+                  typeof (option as { choice?: unknown }).choice === 'string'
+                    ? (option as { choice: string }).choice
+                    : null,
+              }))
+            : [],
         })),
         deliveryMode: session.delivery_info.mode,
         deliveryAddress:
@@ -413,7 +449,40 @@ export class OrdersService {
         continue;
       }
 
-      if (Number(menuItem.price) !== cartItem.price) {
+      const selectedTokens = (cartItem.options ?? []).flatMap((option) => {
+        if (!option || typeof option !== 'object') {
+          return [];
+        }
+        const choice =
+          typeof option.choice === 'string' && option.choice.trim()
+            ? option.choice.trim()
+            : null;
+        if (choice) {
+          return [choice];
+        }
+        return typeof option.name === 'string' && option.name.trim()
+          ? [option.name.trim()]
+          : [];
+      });
+
+      const resolved = this.menuService.resolveSelectedOptions(
+        menuItem.options,
+        selectedTokens,
+      );
+      if (!resolved.success) {
+        invalid.push({
+          item_id: cartItem.item_id,
+          name: menuItem.name,
+          reason: resolved.reason,
+          ...(resolved.reason === 'missing_required_options'
+            ? { missing_options: resolved.missing }
+            : { invalid_options: resolved.invalid }),
+        });
+        continue;
+      }
+
+      const expectedPrice = Number(menuItem.price) + resolved.extra;
+      if (expectedPrice !== Number(cartItem.price)) {
         invalid.push({
           item_id: cartItem.item_id,
           name: menuItem.name,

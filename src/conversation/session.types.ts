@@ -18,7 +18,7 @@ export type SessionCartItem = {
   name: string;
   price: number;
   quantity: number;
-  options: unknown[];
+  options: Array<{ name: string; price: number; choice?: string | null }>;
 };
 
 export type ConversationSession = {

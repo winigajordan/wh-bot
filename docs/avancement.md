@@ -115,10 +115,13 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] Liste commandes Angular branchée sur l’API (+ changement de statut)
 - [x] Filtre date + Aujourd’hui, annulation (`cancelled`) depuis `received`
 - [x] WebSocket nouvelle commande (`order.created` / `order.updated`)
-- [ ] Écrans menu / zones / review
+- [x] Écran Menu CRUD (`GET/POST/PATCH /dashboard/menu` + UI Angular)
+- [x] Catégories menu (`menu_categories` + `GET/POST /dashboard/menu/categories` + UI grille)
+- [x] Écran zones de livraison (`GET/POST/PATCH/DELETE /dashboard/zones` + UI Angular)
+- [ ] Écran review
 - [ ] Plus tard : register / refresh token
 
-**Prochaine étape : écrans Menu / Zones.**
+**Prochaine étape : Review (ou polish dashboard).**
 
 ---
 

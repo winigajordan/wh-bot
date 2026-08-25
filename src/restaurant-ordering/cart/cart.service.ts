@@ -14,6 +14,18 @@ export type CartAddItemInput = {
   options?: unknown[];
 };
 
+export type CartAddItemsFailedEntry = {
+  item_id: string;
+  reason:
+    | 'item_not_found'
+    | 'item_unavailable'
+    | 'invalid_quantity'
+    | 'invalid_options'
+    | 'missing_required_options';
+  missing_options?: string[];
+  invalid_options?: string[];
+};
+
 export type CartAddItemsResult =
   | {
       success: true;
@@ -25,10 +37,7 @@ export type CartAddItemsResult =
       reason: 'empty_items' | 'invalid_items';
       cart: SessionCartItem[];
       added: [];
-      failed: Array<{
-        item_id: string;
-        reason: 'item_not_found' | 'item_unavailable' | 'invalid_quantity';
-      }>;
+      failed: CartAddItemsFailedEntry[];
     };
 
 export type CartSummary = {
@@ -97,71 +106,25 @@ export class CartService {
       };
     }
 
-    const prepared: Array<{
-      item_id: string;
-      name: string;
-      price: number;
-      quantity: number;
-      options: unknown[];
-    }> = [];
-    const failed: Array<{
-      item_id: string;
-      reason: 'item_not_found' | 'item_unavailable' | 'invalid_quantity';
-    }> = [];
-
-    for (const raw of items) {
-      const itemId = typeof raw.item_id === 'string' ? raw.item_id.trim() : '';
-      const quantity = Number(raw.quantity);
-      const options = Array.isArray(raw.options) ? raw.options : [];
-
-      if (!itemId || !isUuid(itemId)) {
-        failed.push({
-          item_id: itemId || 'unknown',
-          reason: 'item_not_found',
-        });
-        continue;
-      }
-      if (!Number.isInteger(quantity) || quantity < 1) {
-        failed.push({ item_id: itemId, reason: 'invalid_quantity' });
-        continue;
-      }
-
-      const menuItem = await this.menuService.findById(businessId, itemId);
-      if (!menuItem) {
-        failed.push({ item_id: itemId, reason: 'item_not_found' });
-        continue;
-      }
-      if (!menuItem.available) {
-        failed.push({ item_id: itemId, reason: 'item_unavailable' });
-        continue;
-      }
-
-      prepared.push({
-        item_id: itemId,
-        name: menuItem.name,
-        price: Number(menuItem.price),
-        quantity,
-        options,
-      });
-    }
-
-    if (failed.length > 0) {
+    const preparedResult = await this.prepareValidatedItems(businessId, items);
+    if (!preparedResult.success) {
       return {
         success: false,
         reason: 'invalid_items',
         cart: current.cart,
         added: [],
-        failed,
+        failed: preparedResult.failed,
       };
     }
 
+    const prepared = preparedResult.items;
     const session = await this.sessionService.mutateSession(
       businessId,
       clientPhone,
       (sessionState) => {
         for (const item of prepared) {
           const existing = sessionState.cart.find(
-            (entry) => entry.item_id === item.item_id,
+            (entry) => this.cartLineKey(entry) === this.cartLineKey(item),
           );
           if (existing) {
             existing.quantity += item.quantity;
@@ -216,64 +179,18 @@ export class CartService {
       };
     }
 
-    const prepared: Array<{
-      item_id: string;
-      name: string;
-      price: number;
-      quantity: number;
-      options: unknown[];
-    }> = [];
-    const failed: Array<{
-      item_id: string;
-      reason: 'item_not_found' | 'item_unavailable' | 'invalid_quantity';
-    }> = [];
-
-    for (const raw of items) {
-      const itemId = typeof raw.item_id === 'string' ? raw.item_id.trim() : '';
-      const quantity = Number(raw.quantity);
-      const options = Array.isArray(raw.options) ? raw.options : [];
-
-      if (!itemId || !isUuid(itemId)) {
-        failed.push({
-          item_id: itemId || 'unknown',
-          reason: 'item_not_found',
-        });
-        continue;
-      }
-      if (!Number.isInteger(quantity) || quantity < 1) {
-        failed.push({ item_id: itemId, reason: 'invalid_quantity' });
-        continue;
-      }
-
-      const menuItem = await this.menuService.findById(businessId, itemId);
-      if (!menuItem) {
-        failed.push({ item_id: itemId, reason: 'item_not_found' });
-        continue;
-      }
-      if (!menuItem.available) {
-        failed.push({ item_id: itemId, reason: 'item_unavailable' });
-        continue;
-      }
-
-      prepared.push({
-        item_id: itemId,
-        name: menuItem.name,
-        price: Number(menuItem.price),
-        quantity,
-        options,
-      });
-    }
-
-    if (failed.length > 0) {
+    const preparedResult = await this.prepareValidatedItems(businessId, items);
+    if (!preparedResult.success) {
       return {
         success: false,
         reason: 'invalid_items',
         cart: current.cart,
         added: [],
-        failed,
+        failed: preparedResult.failed,
       };
     }
 
+    const prepared = preparedResult.items;
     const session = await this.sessionService.mutateSession(
       businessId,
       clientPhone,
@@ -438,6 +355,108 @@ export class CartService {
 
     await this.clearCartAndDelivery(businessId, clientPhone);
     return { success: true };
+  }
+
+  private async prepareValidatedItems(
+    businessId: string,
+    items: CartAddItemInput[],
+  ): Promise<
+    | {
+        success: true;
+        items: Array<{
+          item_id: string;
+          name: string;
+          price: number;
+          quantity: number;
+          options: SessionCartItem['options'];
+        }>;
+      }
+    | { success: false; failed: CartAddItemsFailedEntry[] }
+  > {
+    const prepared: Array<{
+      item_id: string;
+      name: string;
+      price: number;
+      quantity: number;
+      options: SessionCartItem['options'];
+    }> = [];
+    const failed: CartAddItemsFailedEntry[] = [];
+
+    for (const raw of items) {
+      const itemId = typeof raw.item_id === 'string' ? raw.item_id.trim() : '';
+      const quantity = Number(raw.quantity);
+      const options = Array.isArray(raw.options) ? raw.options : [];
+
+      if (!itemId || !isUuid(itemId)) {
+        failed.push({
+          item_id: itemId || 'unknown',
+          reason: 'item_not_found',
+        });
+        continue;
+      }
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        failed.push({ item_id: itemId, reason: 'invalid_quantity' });
+        continue;
+      }
+
+      const menuItem = await this.menuService.findById(businessId, itemId);
+      if (!menuItem) {
+        failed.push({ item_id: itemId, reason: 'item_not_found' });
+        continue;
+      }
+      if (!menuItem.available) {
+        failed.push({ item_id: itemId, reason: 'item_unavailable' });
+        continue;
+      }
+
+      const resolved = this.menuService.resolveSelectedOptions(
+        menuItem.options,
+        options,
+      );
+      if (!resolved.success) {
+        failed.push({
+          item_id: itemId,
+          reason: resolved.reason,
+          ...(resolved.reason === 'missing_required_options'
+            ? { missing_options: resolved.missing }
+            : { invalid_options: resolved.invalid }),
+        });
+        continue;
+      }
+
+      prepared.push({
+        item_id: itemId,
+        name: menuItem.name,
+        price: Number(menuItem.price) + resolved.extra,
+        quantity,
+        options: resolved.options,
+      });
+    }
+
+    if (failed.length > 0) {
+      return { success: false, failed };
+    }
+
+    return { success: true, items: prepared };
+  }
+
+  /** Même plat + mêmes options/choix = même ligne panier. */
+  private cartLineKey(item: {
+    item_id: string;
+    options: Array<{ name: string; choice?: string | null }>;
+  }): string {
+    const optionsKey = [...item.options]
+      .map((option) => {
+        const choice =
+          typeof option.choice === 'string' && option.choice.trim()
+            ? option.choice.trim().toLowerCase()
+            : '';
+        return `${option.name.trim().toLowerCase()}:${choice}`;
+      })
+      .filter(Boolean)
+      .sort()
+      .join('|');
+    return `${item.item_id}::${optionsKey}`;
   }
 
   private buildSummary(session: ConversationSession): CartSummary {

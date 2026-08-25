@@ -11,11 +11,18 @@ describe('CartService', () => {
   const mutateSession = jest.fn();
   const getSession = jest.fn();
   const findById = jest.fn();
+  const resolveSelectedOptions = jest.fn();
 
   beforeEach(async () => {
     mutateSession.mockReset();
     getSession.mockReset();
     findById.mockReset();
+    resolveSelectedOptions.mockReset();
+    resolveSelectedOptions.mockReturnValue({
+      success: true,
+      options: [],
+      extra: 0,
+    });
 
     getSession.mockResolvedValue({
       cart: [],
@@ -34,7 +41,7 @@ describe('CartService', () => {
         },
         {
           provide: MenuService,
-          useValue: { findById },
+          useValue: { findById, resolveSelectedOptions },
         },
       ],
     }).compile();
