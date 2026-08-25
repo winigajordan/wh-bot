@@ -2,6 +2,7 @@ export default () => ({
   app: {
     port: parseInt(process.env.PORT || '3000', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
+    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:4200',
   },
   redis: {
     url: process.env.REDIS_URL || 'redis://localhost:6379',
@@ -31,5 +32,9 @@ export default () => ({
       process.env.CONVERSATION_DEBOUNCE_DELAY_MS || '2500',
       10,
     ),
+  },
+  jwt: {
+    secret: process.env.JWT_SECRET || 'dev-insecure-secret-change-me',
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
 });

@@ -25,4 +25,11 @@ export class BusinessesService {
       relations: { module: true },
     });
   }
+
+  findByUserId(userId: string): Promise<Business | null> {
+    return this.businessRepository.findOne({
+      where: { userId },
+      relations: { module: true },
+    });
+  }
 }

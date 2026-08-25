@@ -44,4 +44,15 @@ describe('BusinessesService', () => {
       service.findByWhatsAppPhoneNumberId('unknown'),
     ).resolves.toBeNull();
   });
+
+  it('résout un business par user_id', async () => {
+    const business = { id: 'biz-1', userId: 'user-1' } as Business;
+    findOne.mockResolvedValue(business);
+
+    await expect(service.findByUserId('user-1')).resolves.toBe(business);
+    expect(findOne).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+      relations: { module: true },
+    });
+  });
 });

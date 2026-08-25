@@ -8,15 +8,17 @@ Prérequis : `npm run start:dev`, `ngrok http 3000`, seeds (`npm run seed`, `see
 
 ## UX WhatsApp
 
-- [ ] Message lu (coches bleues) quasi immédiatement après envoi
-- [ ] Indicateur « en train d'écrire… » pendant le traitement Claude (visible si > 2 s)
-- [ ] Indicateur disparaît à l’arrivée de la réponse
+- [x] Message lu (coches bleues) quasi immédiatement après envoi
+- [x] Indicateur « en train d'écrire… » pendant le traitement Claude (visible si > 2 s)
+- [x] Indicateur disparaît à l’arrivée de la réponse
 
 ## Debounce (rafales)
 
 - [x] Envoyer **3 messages rapides** (< 3 s) → **1 seule** réponse, contexte des 3 messages
 - [x] Envoyer un message, **attendre 6 s**, en envoyer un autre → **2** réponses distinctes
 - [x] 2 numéros différents en parallèle → traitements indépendants
+
+
 
 ## Menu
 

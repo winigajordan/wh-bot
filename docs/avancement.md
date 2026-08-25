@@ -2,22 +2,24 @@
 
 Suivi de ce qui est fait et de ce qui reste. Photo de l’architecture : [etat-actuel.md](./etat-actuel.md). Specs : [specs.md](./specs.md). Refactor multi-tenant : [update1.md](./update1.md).
 
-Tout le code vit dans `whatsapp-bot/`. L’auth **login/JWT** est reportée (la table `users` existe déjà pour le schéma).
+Tout le code backend vit dans `whatsapp-bot/`. Frontend dashboard : `wini-food/` (Angular 20).
 
-Dernière mise à jour : 24 août 2026.
+Dernière mise à jour : 25 août 2026.
 
 ---
 
-## Stabilisation bot (en cours)
+## Stabilisation bot — validée
 
-Voir checklist : [test-manuel-bot.md](./test-manuel-bot.md).
+Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios OK** (24 août 2026).
 
 - [x] Tool `clear_cart`
 - [x] Limite tools configurable + prompt budget + fallback texte sans tools
 - [x] Debounce BullMQ
 - [x] Accusé de lecture + indicateur typing WhatsApp
-- [ ] Validation manuelle checklist complète
-- [ ] `WHATSAPP_ACCESS_TOKEN` System User niveau Business Portfolio
+- [x] Validation manuelle checklist complète
+- [ ] `WHATSAPP_ACCESS_TOKEN` System User niveau Business Portfolio (si multi-WABA)
+
+**Prochaine étape : Phase 5 — Dashboard.**
 
 ---
 
@@ -66,7 +68,7 @@ Voir checklist : [test-manuel-bot.md](./test-manuel-bot.md).
 ### Hors scope volontaire (déjà tranché)
 
 - Postgres dans Docker → non
-- Auth login/JWT dashboard → **plus tard** (table `users` déjà là)
+- Auth login/JWT dashboard → **fait** (25 août 2026) — voir Phase 5
 
 ### Reporté volontairement (ne pas oublier)
 
@@ -104,15 +106,17 @@ Voir checklist : [test-manuel-bot.md](./test-manuel-bot.md).
 - [x] Prompt resto : flow commande complet
 - [ ] WebSocket dashboard à la confirmation
 
-### Phase 5 — Dashboard (sans auth login pour l’instant) ← **après stabilisation bot**
+### Phase 5 — Dashboard ← **en cours**
 
-- [ ] App Angular
-- [ ] Écrans commandes / menu / zones / review
-- [ ] Plus tard : login 1 user = 1 business
+- [x] Auth JWT (`POST /auth/login`, `GET /auth/me`, guard)
+- [x] Seed users liés aux businesses (`npm run seed:users`)
+- [ ] App Angular `wini-food` — login + écrans
+- [ ] API commandes (`GET/PATCH orders`)
+- [ ] WebSocket nouvelle commande
+- [ ] Écrans menu / zones / review
+- [ ] Plus tard : register / refresh token
 
-### Phases 6–8
-
-Notifications de statut, durcissement, pilote 2–3 businesses.
+**Prochaine étape : API orders + login Angular.**
 
 ---
 
@@ -125,6 +129,6 @@ Voir specs §13. Pas de 2e module métier (`salon`, banque, école) pour le POC 
 ## Ordre
 
 **0 → 1 → 2** : fait (Phase 2 considérée suffisante sans persist Postgres).  
-**3 et 4** : cœur fait. **Stabilisation bot** : checklist manuelle puis Phase 5.  
-**Persist messages** : avant Phase 5 ou pilote, pas avant menu/panier.  
-**5** : dès que la checklist stabilisation est validée.
+**3 et 4** : cœur fait. **Stabilisation bot** : validée.  
+**Persist messages** : avant Phase 5 ou pilote.  
+**5** : prochaine étape.

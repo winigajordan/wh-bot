@@ -9,6 +9,41 @@ Format d’un bloc :
 
 ##########
 
+## Phase 5 — Auth JWT dashboard
+
+Date : 25 août 2026, 00:40
+
+### Comportement
+
+- `POST /auth/login` `{ email, password }` → `{ access_token, user, business }` (business résolu via `businesses.user_id`)
+- `GET /auth/me` (Bearer JWT) → user + business liés
+- JWT payload : `sub` (userId), `businessId`, `email` — revalidé à chaque requête (user ↔ business toujours liés)
+- Mot de passe hashé bcrypt ; CORS Angular `http://localhost:4200`
+- Seed users : `npm run seed:users` (lie 2 comptes aux 2 businesses)
+
+### Fichiers
+
+- `src/auth/` — module, controller, service, JwtStrategy, JwtAuthGuard, CurrentUser
+- `src/businesses/businesses.service.ts` — `findByUserId`
+- `src/dashboard-api/dashboard-api.module.ts` — importe AuthModule
+- `src/main.ts` — CORS
+- `src/config/configuration.ts` — `jwt.*`, `app.corsOrigin`
+- `src/database/seeds/seed-test-users.ts`
+- `.env.example` — `JWT_SECRET`, `JWT_EXPIRES_IN`, `CORS_ORIGIN`
+
+### Comptes test
+
+- `winiga@test.local` / `password123` → Winiga Jordan
+- `delices@test.local` / `password123` → Les délices de Jordan
+
+### Non fait (volontaire)
+
+- API orders / WebSocket / écrans Angular
+- Refresh token / logout blacklist
+- Register public (création compte)
+
+##########
+
 ## Indicateur typing + accusé de lecture WhatsApp
 
 Date : 24 août 2026, 19:15
