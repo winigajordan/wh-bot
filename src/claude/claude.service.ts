@@ -167,6 +167,7 @@ export class ClaudeService {
     systemPrompt: string,
     messages: AnthropicMessageParam[],
     tools?: Anthropic.Tool[],
+    maxTokens = 1024,
   ): Promise<Anthropic.Message> {
     const apiKey = this.config.get<string>('anthropic.apiKey') ?? '';
     if (!apiKey) {
@@ -175,11 +176,97 @@ export class ClaudeService {
 
     return this.client.messages.create({
       model: this.model,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages,
       ...(tools?.length ? { tools } : {}),
     });
+  }
+
+  /**
+   * Extraction one-shot (pas de tools) : une ou plusieurs images → JSON menu.
+   */
+  async extractMenuFromImages(
+    images: Array<{
+      mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+      base64: string;
+    }>,
+  ): Promise<{ rawText: string; parsed: unknown }> {
+    if (images.length === 0) {
+      throw new Error('Au moins une image requise');
+    }
+
+    const systemPrompt = [
+      'Tu extrais un menu de restaurant depuis une ou plusieurs images (pages du même menu).',
+      'Réponds UNIQUEMENT avec un JSON valide, sans markdown, sans texte avant/après.',
+      'Schéma exact :',
+      '{"categories":[{"name":"string","items":[{"name":"string","price":number,"description":string|null,"options":[{"name":"string","required":boolean,"price":number,"choices":string[]}]}]}]}',
+      'Règles :',
+      '- fusionne toutes les pages en un seul menu cohérent (pas de doublons de plats)',
+      '- price en nombre (XOF), sans symbole ni séparateur de milliers',
+      '- description null si absente',
+      '- options [] si aucune option visible ; choices seulement si variantes (ex. boissons)',
+      '- ignore logos, adresses, horaires, promo hors carte',
+      '- regroupe les plats par catégories lisibles sur le menu',
+    ].join('\n');
+
+    const content: Anthropic.ContentBlockParam[] = [
+      ...images.map(
+        (image): Anthropic.ImageBlockParam => ({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: image.mediaType,
+            data: image.base64,
+          },
+        }),
+      ),
+      {
+        type: 'text',
+        text:
+          images.length === 1
+            ? 'Extrais le menu complet selon le schéma JSON demandé.'
+            : `Extrais le menu complet à partir de ces ${images.length} images (pages), selon le schéma JSON demandé.`,
+      },
+    ];
+
+    const response = await this.createMessage(
+      systemPrompt,
+      [{ role: 'user', content }],
+      undefined,
+      8192,
+    );
+
+    const rawText = this.extractText(response.content);
+    return {
+      rawText,
+      parsed: this.parseJsonPayload(rawText),
+    };
+  }
+
+  /** @deprecated Prefer extractMenuFromImages */
+  async extractMenuFromImage(input: {
+    mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+    base64: string;
+  }): Promise<{ rawText: string; parsed: unknown }> {
+    return this.extractMenuFromImages([input]);
+  }
+
+  private parseJsonPayload(rawText: string): unknown {
+    const trimmed = rawText.trim();
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidate = (fenced?.[1] ?? trimmed).trim();
+
+    try {
+      return JSON.parse(candidate) as unknown;
+    } catch {
+      const start = candidate.indexOf('{');
+      const end = candidate.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        return JSON.parse(candidate.slice(start, end + 1)) as unknown;
+      }
+      throw new Error('Réponse Vision non JSON');
+    }
   }
 
   private toAnthropicTools(tools: ClaudeToolDefinition[]): Anthropic.Tool[] {

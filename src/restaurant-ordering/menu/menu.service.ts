@@ -235,6 +235,11 @@ export class MenuService {
     return this.updateItem(businessId, itemId, { available });
   }
 
+  async clearAllItems(businessId: string): Promise<number> {
+    const result = await this.menuItemRepo.delete({ businessId });
+    return result.affected ?? 0;
+  }
+
   async findById(
     businessId: string,
     itemId: string,

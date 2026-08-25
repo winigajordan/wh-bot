@@ -93,8 +93,8 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] Tool `get_menu` + boucle tool calling Claude
 - [x] Seed menu test (`npm run seed:menu`)
 - [x] Prompt resto mis à jour (menu via tool, commande pas encore dispo)
-- [ ] Upload image/PDF + extraction Vision + review humaine (dashboard)
-- [ ] Endpoints CRUD HTTP menu (dashboard)
+- [x] Upload image + extraction Vision + review humaine (dashboard)
+- [x] Endpoints CRUD HTTP menu (dashboard)
 
 ### Phase 4 — Panier / commandes (sous `restaurant-ordering`) — cœur fait
 
@@ -118,10 +118,10 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] Écran Menu CRUD (`GET/POST/PATCH /dashboard/menu` + UI Angular)
 - [x] Catégories menu (`menu_categories` + `GET/POST /dashboard/menu/categories` + UI grille)
 - [x] Écran zones de livraison (`GET/POST/PATCH/DELETE /dashboard/zones` + UI Angular)
-- [ ] Écran review
-- [ ] Plus tard : register / refresh token
+- [x] Écran review menu (upload image → Vision → review → publish)
+- [ ] Plus tard : register / refresh token ; PDF multi-pages
 
-**Prochaine étape : Review (ou polish dashboard).**
+**Prochaine étape : polish dashboard / Phase 6 notifs WhatsApp.**
 
 ---
 
