@@ -15,6 +15,7 @@ describe('OrdersService', () => {
   const orderCount = jest.fn();
   const orderFindOne = jest.fn();
   const orderFind = jest.fn();
+  const orderCreateQueryBuilder = jest.fn();
   const historyFind = jest.fn();
   const getSession = jest.fn();
   const getCartSummary = jest.fn();
@@ -28,6 +29,7 @@ describe('OrdersService', () => {
     orderCount.mockReset();
     orderFindOne.mockReset();
     orderFind.mockReset();
+    orderCreateQueryBuilder.mockReset();
     historyFind.mockReset();
     getSession.mockReset();
     getCartSummary.mockReset();
@@ -63,6 +65,7 @@ describe('OrdersService', () => {
             count: orderCount,
             findOne: orderFindOne,
             find: orderFind,
+            createQueryBuilder: orderCreateQueryBuilder,
             create: (data: unknown) => data,
           },
         },
@@ -183,7 +186,7 @@ describe('OrdersService', () => {
   });
 
   it('liste les commandes d’un business', async () => {
-    orderFind.mockResolvedValue([
+    const getMany = jest.fn().mockResolvedValue([
       {
         id: 'order-1',
         orderNumber: 'CMD-0001',
@@ -198,6 +201,14 @@ describe('OrdersService', () => {
         createdAt: new Date('2026-08-25T00:00:00.000Z'),
       },
     ]);
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany,
+    };
+    orderCreateQueryBuilder.mockReturnValue(qb);
 
     await expect(service.listForBusiness('biz-1')).resolves.toEqual([
       expect.objectContaining({
@@ -258,7 +269,32 @@ describe('OrdersService', () => {
     ).resolves.toEqual({
       success: false,
       reason: 'invalid_transition',
-      allowed: ['preparing'],
+      allowed: ['preparing', 'cancelled'],
+    });
+  });
+
+  it('annule une commande received → cancelled', async () => {
+    orderFindOne.mockResolvedValue({
+      id: 'order-1',
+      businessId: 'biz-1',
+      orderNumber: 'CMD-0001',
+      clientPhone: '22177',
+      items: [],
+      deliveryMode: 'pickup',
+      deliveryAddress: null,
+      deliveryFee: '0.00',
+      total: '3500.00',
+      status: 'received',
+      note: null,
+      createdAt: new Date('2026-08-25T00:00:00.000Z'),
+    });
+    orderSave.mockImplementation(async (order) => order);
+
+    await expect(
+      service.updateStatus('biz-1', 'order-1', 'cancelled'),
+    ).resolves.toEqual({
+      success: true,
+      order: expect.objectContaining({ status: 'cancelled' }),
     });
   });
 });

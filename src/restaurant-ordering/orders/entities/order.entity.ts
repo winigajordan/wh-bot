@@ -10,7 +10,12 @@ import { Business } from '../../../businesses/entities/business.entity';
 import { DeliveryZone } from '../../delivery-zones/entities/delivery-zone.entity';
 
 export type DeliveryMode = 'delivery' | 'pickup';
-export type OrderStatus = 'received' | 'preparing' | 'ready' | 'completed';
+export type OrderStatus =
+  | 'received'
+  | 'preparing'
+  | 'ready'
+  | 'completed'
+  | 'cancelled';
 
 @Entity('orders')
 export class Order {

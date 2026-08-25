@@ -9,6 +9,31 @@ Format d’un bloc :
 
 ##########
 
+## Phase 5 — Liste commandes Angular
+
+Date : 25 août 2026, 01:00
+
+### Comportement
+
+- Page `/orders` charge `GET /dashboard/orders` (filtre statut)
+- Affiche numéro, date, téléphone, items, mode livraison, total, note
+- Bouton d’avancement de statut via `PATCH /dashboard/orders/:id/status`
+- Empty / loading / error states
+
+### Fichiers (`wini-food/`)
+
+- `src/app/features/dashboard/orders/orders-api.service.ts`
+- `src/app/features/dashboard/orders/orders.models.ts`
+- `orders.component.ts|html|css`
+
+### Non fait (volontaire)
+
+- WebSocket push nouvelle commande
+- Polling / refresh auto
+- Notif WhatsApp au client (Phase 6)
+
+##########
+
 ## Phase 5 — Auth Angular (wini-food)
 
 Date : 25 août 2026, 00:55

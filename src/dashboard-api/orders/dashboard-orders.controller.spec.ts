@@ -39,7 +39,14 @@ describe('DashboardOrdersController', () => {
     expect(listForBusiness).toHaveBeenCalledWith('biz-1', {
       status: undefined,
       limit: undefined,
+      date: undefined,
     });
+  });
+
+  it('refuse une date query invalide', async () => {
+    await expect(
+      controller.list(user, undefined, undefined, '25-08-2026'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('refuse un status query invalide', async () => {

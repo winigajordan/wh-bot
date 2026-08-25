@@ -32,13 +32,16 @@ export type DashboardOrderDto = {
 export type ListOrdersOptions = {
   status?: OrderStatus;
   limit?: number;
+  /** Jour civil YYYY-MM-DD (UTC) */
+  date?: string;
 };
 
 const ORDER_STATUS_FLOW: Record<OrderStatus, OrderStatus[]> = {
-  received: ['preparing'],
+  received: ['preparing', 'cancelled'],
   preparing: ['ready'],
   ready: ['completed'],
   completed: [],
+  cancelled: [],
 };
 
 export const ORDER_STATUSES: OrderStatus[] = [
@@ -46,6 +49,7 @@ export const ORDER_STATUSES: OrderStatus[] = [
   'preparing',
   'ready',
   'completed',
+  'cancelled',
 ];
 
 export function isOrderStatus(value: unknown): value is OrderStatus {
@@ -53,6 +57,10 @@ export function isOrderStatus(value: unknown): value is OrderStatus {
     typeof value === 'string' &&
     (ORDER_STATUSES as string[]).includes(value)
   );
+}
+
+export function isOrderDate(value: unknown): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 @Injectable()
@@ -214,18 +222,27 @@ export class OrdersService {
     businessId: string,
     options: ListOrdersOptions = {},
   ): Promise<DashboardOrderDto[]> {
-    const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
-    const where: { businessId: string; status?: OrderStatus } = { businessId };
+    const limit = Math.min(Math.max(options.limit ?? 100, 1), 200);
+    const qb = this.orderRepo
+      .createQueryBuilder('o')
+      .where('o.businessId = :businessId', { businessId })
+      .orderBy('o.createdAt', 'DESC')
+      .take(limit);
+
     if (options.status) {
-      where.status = options.status;
+      qb.andWhere('o.status = :status', { status: options.status });
     }
 
-    const orders = await this.orderRepo.find({
-      where,
-      order: { createdAt: 'DESC' },
-      take: limit,
-    });
+    if (options.date) {
+      qb.andWhere('o.createdAt >= :dayStart', {
+        dayStart: `${options.date}T00:00:00.000Z`,
+      });
+      qb.andWhere('o.createdAt <= :dayEnd', {
+        dayEnd: `${options.date}T23:59:59.999Z`,
+      });
+    }
 
+    const orders = await qb.getMany();
     return orders.map((order) => this.toDashboardDto(order));
   }
 

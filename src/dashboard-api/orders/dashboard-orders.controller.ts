@@ -13,6 +13,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../auth/auth.types';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
+  isOrderDate,
   isOrderStatus,
   OrdersService,
 } from '../../restaurant-ordering/orders/orders.service';
@@ -27,11 +28,16 @@ export class DashboardOrdersController {
     @CurrentUser() user: AuthenticatedUser,
     @Query('status') status?: string,
     @Query('limit') limitRaw?: string,
+    @Query('date') date?: string,
   ) {
     if (status !== undefined && !isOrderStatus(status)) {
       throw new BadRequestException(
-        'status invalide (received|preparing|ready|completed)',
+        'status invalide (received|preparing|ready|completed|cancelled)',
       );
+    }
+
+    if (date !== undefined && !isOrderDate(date)) {
+      throw new BadRequestException('date invalide (attendu YYYY-MM-DD)');
     }
 
     const limit =
@@ -43,6 +49,7 @@ export class DashboardOrdersController {
     return this.ordersService.listForBusiness(user.businessId, {
       status,
       limit,
+      date,
     });
   }
 
@@ -74,7 +81,7 @@ export class DashboardOrdersController {
 
     if (!isOrderStatus(status)) {
       throw new BadRequestException(
-        'status requis : received|preparing|ready|completed',
+        'status requis : received|preparing|ready|completed|cancelled',
       );
     }
 
