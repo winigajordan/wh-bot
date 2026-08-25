@@ -110,13 +110,14 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 
 - [x] Auth JWT (`POST /auth/login`, `GET /auth/me`, guard)
 - [x] Seed users liés aux businesses (`npm run seed:users`)
-- [ ] App Angular `wini-food` — login + écrans
-- [ ] API commandes (`GET/PATCH orders`)
+- [x] API commandes (`GET/PATCH /dashboard/orders`)
+- [x] App Angular `wini-food` — login + shell dashboard Commandes (vide)
+- [ ] Liste commandes Angular branchée sur l’API
 - [ ] WebSocket nouvelle commande
 - [ ] Écrans menu / zones / review
 - [ ] Plus tard : register / refresh token
 
-**Prochaine étape : API orders + login Angular.**
+**Prochaine étape : brancher la liste commandes Angular sur `GET /dashboard/orders`.**
 
 ---
 

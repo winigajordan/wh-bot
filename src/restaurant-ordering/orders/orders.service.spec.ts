@@ -14,6 +14,7 @@ describe('OrdersService', () => {
   const historySave = jest.fn();
   const orderCount = jest.fn();
   const orderFindOne = jest.fn();
+  const orderFind = jest.fn();
   const historyFind = jest.fn();
   const getSession = jest.fn();
   const getCartSummary = jest.fn();
@@ -26,6 +27,7 @@ describe('OrdersService', () => {
     historySave.mockReset();
     orderCount.mockReset();
     orderFindOne.mockReset();
+    orderFind.mockReset();
     historyFind.mockReset();
     getSession.mockReset();
     getCartSummary.mockReset();
@@ -60,6 +62,7 @@ describe('OrdersService', () => {
             save: orderSave,
             count: orderCount,
             findOne: orderFindOne,
+            find: orderFind,
             create: (data: unknown) => data,
           },
         },
@@ -177,5 +180,85 @@ describe('OrdersService', () => {
     await expect(
       service.confirmOrder('biz-1', '22177', true),
     ).resolves.toEqual({ success: false, reason: 'empty_cart' });
+  });
+
+  it('liste les commandes d’un business', async () => {
+    orderFind.mockResolvedValue([
+      {
+        id: 'order-1',
+        orderNumber: 'CMD-0001',
+        clientPhone: '22177',
+        items: [],
+        deliveryMode: 'pickup',
+        deliveryAddress: null,
+        deliveryFee: '0.00',
+        total: '3500.00',
+        status: 'received',
+        note: null,
+        createdAt: new Date('2026-08-25T00:00:00.000Z'),
+      },
+    ]);
+
+    await expect(service.listForBusiness('biz-1')).resolves.toEqual([
+      expect.objectContaining({
+        id: 'order-1',
+        order_number: 'CMD-0001',
+        status: 'received',
+        total: 3500,
+      }),
+    ]);
+  });
+
+  it('avance le statut received → preparing', async () => {
+    orderFindOne.mockResolvedValue({
+      id: 'order-1',
+      businessId: 'biz-1',
+      orderNumber: 'CMD-0001',
+      clientPhone: '22177',
+      items: [],
+      deliveryMode: 'pickup',
+      deliveryAddress: null,
+      deliveryFee: '0.00',
+      total: '3500.00',
+      status: 'received',
+      note: null,
+      createdAt: new Date('2026-08-25T00:00:00.000Z'),
+    });
+    orderSave.mockImplementation(async (order) => order);
+
+    await expect(
+      service.updateStatus('biz-1', 'order-1', 'preparing'),
+    ).resolves.toEqual({
+      success: true,
+      order: expect.objectContaining({ status: 'preparing' }),
+    });
+
+    expect(historySave).toHaveBeenCalledWith(
+      expect.objectContaining({ orderId: 'order-1', status: 'preparing' }),
+    );
+  });
+
+  it('refuse une transition invalide', async () => {
+    orderFindOne.mockResolvedValue({
+      id: 'order-1',
+      status: 'received',
+      orderNumber: 'CMD-0001',
+      clientPhone: '22177',
+      items: [],
+      deliveryMode: 'pickup',
+      deliveryAddress: null,
+      deliveryFee: '0.00',
+      total: '3500.00',
+      note: null,
+      createdAt: new Date('2026-08-25T00:00:00.000Z'),
+    });
+
+    await expect(
+      service.updateStatus('biz-1', 'order-1', 'completed'),
+    ).resolves.toEqual({
+      success: false,
+      reason: 'invalid_transition',
+      allowed: ['preparing'],
+    });
   });
 });

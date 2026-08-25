@@ -7,13 +7,53 @@ import { CartService } from '../cart/cart.service';
 import { DeliveryZonesService } from '../delivery-zones/delivery-zones.service';
 import { MenuService } from '../menu/menu.service';
 import { OrderStatusHistory } from './entities/order-status-history.entity';
-import { Order } from './entities/order.entity';
+import { Order, OrderStatus } from './entities/order.entity';
 
 type InvalidCartItem = {
   item_id: string;
   name: string;
   reason: 'item_not_found' | 'item_unavailable' | 'price_changed';
 };
+
+export type DashboardOrderDto = {
+  id: string;
+  order_number: string;
+  client_phone: string;
+  items: unknown[];
+  delivery_mode: string;
+  delivery_address: string | null;
+  delivery_fee: number;
+  total: number;
+  status: OrderStatus;
+  note: string | null;
+  created_at: string;
+};
+
+export type ListOrdersOptions = {
+  status?: OrderStatus;
+  limit?: number;
+};
+
+const ORDER_STATUS_FLOW: Record<OrderStatus, OrderStatus[]> = {
+  received: ['preparing'],
+  preparing: ['ready'],
+  ready: ['completed'],
+  completed: [],
+};
+
+export const ORDER_STATUSES: OrderStatus[] = [
+  'received',
+  'preparing',
+  'ready',
+  'completed',
+];
+
+export function isOrderStatus(value: unknown): value is OrderStatus {
+  return (
+    typeof value === 'string' &&
+    (ORDER_STATUSES as string[]).includes(value)
+  );
+}
 
 @Injectable()
 export class OrdersService {
@@ -167,6 +207,96 @@ export class OrdersService {
         status: entry.status,
         changed_at: entry.changedAt.toISOString(),
       })),
+    };
+  }
+
+  async listForBusiness(
+    businessId: string,
+    options: ListOrdersOptions = {},
+  ): Promise<DashboardOrderDto[]> {
+    const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+    const where: { businessId: string; status?: OrderStatus } = { businessId };
+    if (options.status) {
+      where.status = options.status;
+    }
+
+    const orders = await this.orderRepo.find({
+      where,
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+
+    return orders.map((order) => this.toDashboardDto(order));
+  }
+
+  async findForBusiness(
+    businessId: string,
+    orderId: string,
+  ): Promise<DashboardOrderDto | null> {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId, businessId },
+    });
+    return order ? this.toDashboardDto(order) : null;
+  }
+
+  async updateStatus(
+    businessId: string,
+    orderId: string,
+    nextStatus: OrderStatus,
+  ): Promise<
+    | { success: true; order: DashboardOrderDto }
+    | {
+        success: false;
+        reason: 'not_found' | 'invalid_transition';
+        allowed?: OrderStatus[];
+      }
+  > {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId, businessId },
+    });
+
+    if (!order) {
+      return { success: false, reason: 'not_found' };
+    }
+
+    if (order.status === nextStatus) {
+      return { success: true, order: this.toDashboardDto(order) };
+    }
+
+    const allowed = ORDER_STATUS_FLOW[order.status];
+    if (!allowed.includes(nextStatus)) {
+      return {
+        success: false,
+        reason: 'invalid_transition',
+        allowed,
+      };
+    }
+
+    order.status = nextStatus;
+    const saved = await this.orderRepo.save(order);
+    await this.historyRepo.save(
+      this.historyRepo.create({
+        orderId: saved.id,
+        status: nextStatus,
+      }),
+    );
+
+    return { success: true, order: this.toDashboardDto(saved) };
+  }
+
+  private toDashboardDto(order: Order): DashboardOrderDto {
+    return {
+      id: order.id,
+      order_number: order.orderNumber,
+      client_phone: order.clientPhone,
+      items: order.items,
+      delivery_mode: order.deliveryMode,
+      delivery_address: order.deliveryAddress,
+      delivery_fee: Number(order.deliveryFee),
+      total: Number(order.total),
+      status: order.status,
+      note: order.note,
+      created_at: order.createdAt.toISOString(),
     };
   }
 

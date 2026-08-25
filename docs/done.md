@@ -9,6 +9,59 @@ Format d’un bloc :
 
 ##########
 
+## Phase 5 — Auth Angular (wini-food)
+
+Date : 25 août 2026, 00:55
+
+### Comportement
+
+- Login `/login` → `POST /auth/login` NestJS → stocke JWT + user + business en localStorage
+- Interceptor Bearer automatique ; `authGuard` / `guestGuard`
+- Après login → `/orders` (dashboard shell + page Commandes vide)
+- Header : marque Wini Food, nom du business, email, déconnexion
+
+### Fichiers (`wini-food/`)
+
+- `src/app/core/auth/` — service, interceptor, guards, models
+- `src/app/features/login/`
+- `src/app/features/dashboard/` — shell + orders (empty state)
+- `src/environments/*`, `app.routes.ts`, `app.config.ts`
+
+### Non fait (volontaire)
+
+- Liste réelle des commandes via `GET /dashboard/orders`
+- WebSocket
+- Tests e2e Angular
+
+##########
+
+## Phase 5 — API dashboard commandes (JWT)
+
+Date : 25 août 2026, 00:48
+
+### Comportement
+
+- `GET /dashboard/orders` — liste les commandes du `businessId` du JWT (`?status=`, `?limit=`)
+- `GET /dashboard/orders/:id` — détail (404 si autre business)
+- `PATCH /dashboard/orders/:id/status` — `{ "status": "preparing" }` avec transitions strictes : received → preparing → ready → completed
+- Historique `order_status_history` mis à jour à chaque changement
+- Toutes les routes protégées par `JwtAuthGuard`
+
+### Fichiers
+
+- `src/restaurant-ordering/orders/orders.service.ts` — `listForBusiness`, `findForBusiness`, `updateStatus`
+- `src/dashboard-api/orders/dashboard-orders.controller.ts`
+- `src/dashboard-api/dashboard-api.module.ts`
+- Tests service + controller
+
+### Non fait (volontaire)
+
+- WebSocket push nouvelle commande
+- Login / écrans Angular
+- Notif WhatsApp au client (Phase 6)
+
+##########
+
 ## Phase 5 — Auth JWT dashboard
 
 Date : 25 août 2026, 00:40
