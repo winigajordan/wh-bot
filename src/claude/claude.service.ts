@@ -13,6 +13,12 @@ type AnthropicMessageParam = Anthropic.MessageParam;
 const TOOL_LOOP_EXHAUSTED_USER_MESSAGE =
   'Tu as atteint la limite d’appels d’outils pour cette réponse. Réponds maintenant au client en texte avec les informations déjà obtenues. N’utilise plus d’outils.';
 
+const TOOL_LOOP_NO_CONFIRM_GUARD =
+  'Important : confirm_order n’a PAS réussi dans ce tour. Interdiction absolue de dire que la commande est confirmée, finalisée, passée ou en cours de livraison. Si le client voulait valider : résume le panier et demande une confirmation explicite pour le prochain message.';
+
+const TOOL_LOOP_CONFIRMED_HINT = (orderNumber: string) =>
+  `Important : la commande EST bien confirmée (numéro ${orderNumber}). Mentionne ce numéro clairement au client.`;
+
 export type ToolExecutor = (
   name: string,
   input: Record<string, unknown>,
@@ -76,6 +82,8 @@ export class ClaudeService {
       content: message.content,
     }));
 
+    let confirmedOrderNumber: string | null = null;
+
     for (let iteration = 0; iteration < maxIterations; iteration++) {
       const response = await this.createMessage(
         systemPrompt,
@@ -99,6 +107,9 @@ export class ClaudeService {
           block.name,
           block.input as Record<string, unknown>,
         );
+        if (block.name === 'confirm_order') {
+          confirmedOrderNumber = this.readConfirmedOrderNumber(result);
+        }
         toolResults.push({
           type: 'tool_result',
           tool_use_id: block.id,
@@ -110,16 +121,25 @@ export class ClaudeService {
     }
 
     this.logger.warn('Boucle tools Claude : limite d’itérations atteinte');
-    return this.generateFallbackReplyWithoutTools(systemPrompt, conversation);
+    return this.generateFallbackReplyWithoutTools(
+      systemPrompt,
+      conversation,
+      confirmedOrderNumber,
+    );
   }
 
   private async generateFallbackReplyWithoutTools(
     systemPrompt: string,
     conversation: AnthropicMessageParam[],
+    confirmedOrderNumber: string | null,
   ): Promise<string> {
+    const guard = confirmedOrderNumber
+      ? TOOL_LOOP_CONFIRMED_HINT(confirmedOrderNumber)
+      : TOOL_LOOP_NO_CONFIRM_GUARD;
+
     conversation.push({
       role: 'user',
-      content: TOOL_LOOP_EXHAUSTED_USER_MESSAGE,
+      content: `${TOOL_LOOP_EXHAUSTED_USER_MESSAGE}\n${guard}`,
     });
 
     const response = await this.createMessage(systemPrompt, conversation);
@@ -182,5 +202,20 @@ export class ClaudeService {
     }
 
     return text;
+  }
+
+  private readConfirmedOrderNumber(result: unknown): string | null {
+    if (!result || typeof result !== 'object') {
+      return null;
+    }
+    const record = result as Record<string, unknown>;
+    if (
+      record.success === true &&
+      typeof record.order_number === 'string' &&
+      record.order_number.trim()
+    ) {
+      return record.order_number.trim();
+    }
+    return null;
   }
 }

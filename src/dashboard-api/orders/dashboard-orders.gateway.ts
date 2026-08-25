@@ -67,9 +67,9 @@ export class DashboardOrdersGateway
 
       client.data.businessId = business.id;
       await client.join(businessRoom(business.id));
-      this.logger.debug(
-        `Dashboard WS connected user=${payload.email} business=${business.id}`,
-      );
+      // this.logger.debug(
+      //   `Dashboard WS connected user=${payload.email} business=${business.id}`,
+      // );
     } catch (error) {
       this.logger.warn(
         `Dashboard WS auth failed: ${

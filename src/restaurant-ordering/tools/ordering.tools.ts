@@ -4,31 +4,48 @@ import { GET_MENU_TOOL } from './get-menu.tool';
 export const ADD_TO_CART_TOOL: ClaudeToolDefinition = {
   name: 'add_to_cart',
   description:
-    'Ajoute un plat au panier. item_id doit être l’UUID exact renvoyé par get_menu (champ id) — ne jamais inventer un identifiant.',
+    'Ajoute un ou plusieurs plats au panier en un seul appel. Passe toujours un tableau items (même pour 1 plat). Chaque item_id doit être l’UUID exact renvoyé par get_menu (champ id) — ne jamais inventer un identifiant. Ne jamais appeler add_to_cart une fois par plat : regroupe tout dans items.',
   input_schema: {
     type: 'object',
     properties: {
-      item_id: { type: 'string', description: 'UUID du plat' },
-      quantity: { type: 'integer', description: 'Quantité (>= 1)' },
-      options: {
+      items: {
         type: 'array',
-        items: { type: 'string' },
-        description: 'Options/suppléments optionnels',
+        description: 'Liste des plats à ajouter (1 ou plus)',
+        minItems: 1,
+        items: {
+          type: 'object',
+          properties: {
+            item_id: { type: 'string', description: 'UUID du plat' },
+            quantity: { type: 'integer', description: 'Quantité (>= 1)' },
+            options: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Options/suppléments optionnels',
+            },
+          },
+          required: ['item_id', 'quantity'],
+        },
       },
     },
-    required: ['item_id', 'quantity'],
+    required: ['items'],
   },
 };
 
 export const REMOVE_FROM_CART_TOOL: ClaudeToolDefinition = {
   name: 'remove_from_cart',
-  description: 'Retire un plat du panier.',
+  description:
+    'Retire un ou plusieurs plats du panier en un seul appel via item_ids.',
   input_schema: {
     type: 'object',
     properties: {
-      item_id: { type: 'string', description: 'UUID du plat à retirer' },
+      item_ids: {
+        type: 'array',
+        description: 'UUIDs des plats à retirer',
+        minItems: 1,
+        items: { type: 'string' },
+      },
     },
-    required: ['item_id'],
+    required: ['item_ids'],
   },
 };
 
@@ -98,13 +115,35 @@ export const SET_ORDER_NOTE_TOOL: ClaudeToolDefinition = {
 export const CONFIRM_ORDER_TOOL: ClaudeToolDefinition = {
   name: 'confirm_order',
   description:
-    'Confirme la commande après récapitulatif et accord explicite du client. confirmed_by_client doit être true.',
+    'Finalise TOUTE la commande en un seul appel. confirmed_by_client doit être true. Tu peux passer items (UUIDs get_menu) pour fixer/revalider le panier au moment de la confirmation, et note optionnelle. Tous les item_id sont vérifiés en base : si un seul est invalide, la commande n’est pas créée. Ne pas appeler add_to_cart juste avant si tu fournis déjà items ici.',
   input_schema: {
     type: 'object',
     properties: {
       confirmed_by_client: {
         type: 'boolean',
         description: 'true seulement si le client a confirmé explicitement',
+      },
+      items: {
+        type: 'array',
+        description:
+          'Optionnel : liste complète des plats à commander (UUID get_menu). Si fourni, remplace le panier après validation stricte.',
+        minItems: 1,
+        items: {
+          type: 'object',
+          properties: {
+            item_id: { type: 'string', description: 'UUID du plat' },
+            quantity: { type: 'integer', description: 'Quantité (>= 1)' },
+            options: {
+              type: 'array',
+              items: { type: 'string' },
+            },
+          },
+          required: ['item_id', 'quantity'],
+        },
+      },
+      note: {
+        type: 'string',
+        description: 'Note client optionnelle (allergies, consignes)',
       },
     },
     required: ['confirmed_by_client'],

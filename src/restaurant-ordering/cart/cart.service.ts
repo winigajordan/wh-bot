@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { isUuid } from '../../common/uuid.util';
 import { ConversationSessionService } from '../../conversation/conversation-session.service';
 import {
   ConversationSession,
@@ -6,6 +7,29 @@ import {
   SessionDeliveryInfo,
 } from '../../conversation/session.types';
 import { MenuService } from '../menu/menu.service';
+
+export type CartAddItemInput = {
+  item_id: string;
+  quantity: number;
+  options?: unknown[];
+};
+
+export type CartAddItemsResult =
+  | {
+      success: true;
+      cart: SessionCartItem[];
+      added: Array<{ item_id: string; name: string; quantity: number }>;
+    }
+  | {
+      success: false;
+      reason: 'empty_items' | 'invalid_items';
+      cart: SessionCartItem[];
+      added: [];
+      failed: Array<{
+        item_id: string;
+        reason: 'item_not_found' | 'item_unavailable' | 'invalid_quantity';
+      }>;
+    };
 
 export type CartSummary = {
   items: SessionCartItem[];
@@ -33,42 +57,246 @@ export class CartService {
     | { success: true; cart: SessionCartItem[] }
     | { success: false; reason: 'item_not_found' | 'item_unavailable' }
   > {
-    if (!Number.isInteger(quantity) || quantity < 1) {
-      return { success: false, reason: 'item_not_found' };
+    const result = await this.addItemsToCart(businessId, clientPhone, [
+      { item_id: itemId, quantity, options },
+    ]);
+
+    if (result.success) {
+      return { success: true, cart: result.cart };
     }
 
-    const menuItem = await this.menuService.findById(businessId, itemId);
-    if (!menuItem) {
-      return { success: false, reason: 'item_not_found' };
-    }
-    if (!menuItem.available) {
+    const failedReason = result.failed[0]?.reason;
+    if (failedReason === 'item_unavailable') {
       return { success: false, reason: 'item_unavailable' };
     }
+    return { success: false, reason: 'item_not_found' };
+  }
 
-    const price = Number(menuItem.price);
+  /**
+   * Ajoute plusieurs plats en une seule mutation Redis.
+   * Tout-ou-rien : si un seul item_id est invalide / introuvable / indispo,
+   * le panier n’est pas modifié.
+   */
+  async addItemsToCart(
+    businessId: string,
+    clientPhone: string,
+    items: CartAddItemInput[],
+  ): Promise<CartAddItemsResult> {
+    const current = await this.sessionService.getSession(
+      businessId,
+      clientPhone,
+    );
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return {
+        success: false,
+        reason: 'empty_items',
+        cart: current.cart,
+        added: [],
+        failed: [],
+      };
+    }
+
+    const prepared: Array<{
+      item_id: string;
+      name: string;
+      price: number;
+      quantity: number;
+      options: unknown[];
+    }> = [];
+    const failed: Array<{
+      item_id: string;
+      reason: 'item_not_found' | 'item_unavailable' | 'invalid_quantity';
+    }> = [];
+
+    for (const raw of items) {
+      const itemId = typeof raw.item_id === 'string' ? raw.item_id.trim() : '';
+      const quantity = Number(raw.quantity);
+      const options = Array.isArray(raw.options) ? raw.options : [];
+
+      if (!itemId || !isUuid(itemId)) {
+        failed.push({
+          item_id: itemId || 'unknown',
+          reason: 'item_not_found',
+        });
+        continue;
+      }
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        failed.push({ item_id: itemId, reason: 'invalid_quantity' });
+        continue;
+      }
+
+      const menuItem = await this.menuService.findById(businessId, itemId);
+      if (!menuItem) {
+        failed.push({ item_id: itemId, reason: 'item_not_found' });
+        continue;
+      }
+      if (!menuItem.available) {
+        failed.push({ item_id: itemId, reason: 'item_unavailable' });
+        continue;
+      }
+
+      prepared.push({
+        item_id: itemId,
+        name: menuItem.name,
+        price: Number(menuItem.price),
+        quantity,
+        options,
+      });
+    }
+
+    if (failed.length > 0) {
+      return {
+        success: false,
+        reason: 'invalid_items',
+        cart: current.cart,
+        added: [],
+        failed,
+      };
+    }
+
     const session = await this.sessionService.mutateSession(
       businessId,
       clientPhone,
-      (current) => {
-        const existing = current.cart.find((item) => item.item_id === itemId);
-        if (existing) {
-          existing.quantity += quantity;
-          existing.price = price;
-          existing.name = menuItem.name;
-          existing.options = options;
-        } else {
-          current.cart.push({
-            item_id: itemId,
-            name: menuItem.name,
-            price,
-            quantity,
-            options,
-          });
+      (sessionState) => {
+        for (const item of prepared) {
+          const existing = sessionState.cart.find(
+            (entry) => entry.item_id === item.item_id,
+          );
+          if (existing) {
+            existing.quantity += item.quantity;
+            existing.price = item.price;
+            existing.name = item.name;
+            existing.options = item.options;
+          } else {
+            sessionState.cart.push({
+              item_id: item.item_id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              options: item.options,
+            });
+          }
         }
       },
     );
 
-    return { success: true, cart: session.cart };
+    return {
+      success: true,
+      cart: session.cart,
+      added: prepared.map((item) => ({
+        item_id: item.item_id,
+        name: item.name,
+        quantity: item.quantity,
+      })),
+    };
+  }
+
+  /**
+   * Remplace le panier par une liste validée (tout-ou-rien).
+   * Utilisé par confirm_order pour finaliser en un seul appel.
+   */
+  async replaceCartItems(
+    businessId: string,
+    clientPhone: string,
+    items: CartAddItemInput[],
+  ): Promise<CartAddItemsResult> {
+    const current = await this.sessionService.getSession(
+      businessId,
+      clientPhone,
+    );
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return {
+        success: false,
+        reason: 'empty_items',
+        cart: current.cart,
+        added: [],
+        failed: [],
+      };
+    }
+
+    const prepared: Array<{
+      item_id: string;
+      name: string;
+      price: number;
+      quantity: number;
+      options: unknown[];
+    }> = [];
+    const failed: Array<{
+      item_id: string;
+      reason: 'item_not_found' | 'item_unavailable' | 'invalid_quantity';
+    }> = [];
+
+    for (const raw of items) {
+      const itemId = typeof raw.item_id === 'string' ? raw.item_id.trim() : '';
+      const quantity = Number(raw.quantity);
+      const options = Array.isArray(raw.options) ? raw.options : [];
+
+      if (!itemId || !isUuid(itemId)) {
+        failed.push({
+          item_id: itemId || 'unknown',
+          reason: 'item_not_found',
+        });
+        continue;
+      }
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        failed.push({ item_id: itemId, reason: 'invalid_quantity' });
+        continue;
+      }
+
+      const menuItem = await this.menuService.findById(businessId, itemId);
+      if (!menuItem) {
+        failed.push({ item_id: itemId, reason: 'item_not_found' });
+        continue;
+      }
+      if (!menuItem.available) {
+        failed.push({ item_id: itemId, reason: 'item_unavailable' });
+        continue;
+      }
+
+      prepared.push({
+        item_id: itemId,
+        name: menuItem.name,
+        price: Number(menuItem.price),
+        quantity,
+        options,
+      });
+    }
+
+    if (failed.length > 0) {
+      return {
+        success: false,
+        reason: 'invalid_items',
+        cart: current.cart,
+        added: [],
+        failed,
+      };
+    }
+
+    const session = await this.sessionService.mutateSession(
+      businessId,
+      clientPhone,
+      (sessionState) => {
+        sessionState.cart = prepared.map((item) => ({
+          item_id: item.item_id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          options: item.options,
+        }));
+      },
+    );
+
+    return {
+      success: true,
+      cart: session.cart,
+      added: prepared.map((item) => ({
+        item_id: item.item_id,
+        name: item.name,
+        quantity: item.quantity,
+      })),
+    };
   }
 
   async removeFromCart(
@@ -79,24 +307,57 @@ export class CartService {
     | { success: true; cart: SessionCartItem[] }
     | { success: false; reason: 'item_not_in_cart' }
   > {
+    const result = await this.removeItemsFromCart(businessId, clientPhone, [
+      itemId,
+    ]);
+    if (result.removed.length > 0) {
+      return { success: true, cart: result.cart };
+    }
+    return { success: false, reason: 'item_not_in_cart' };
+  }
+
+  async removeItemsFromCart(
+    businessId: string,
+    clientPhone: string,
+    itemIds: string[],
+  ): Promise<{
+    success: true;
+    cart: SessionCartItem[];
+    removed: string[];
+    missing: string[];
+  }> {
+    const uniqueIds = [
+      ...new Set(
+        itemIds
+          .filter((id) => typeof id === 'string')
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    ];
+
     const session = await this.sessionService.getSession(
       businessId,
       clientPhone,
     );
-    const exists = session.cart.some((item) => item.item_id === itemId);
-    if (!exists) {
-      return { success: false, reason: 'item_not_in_cart' };
+    const inCart = new Set(session.cart.map((item) => item.item_id));
+    const removed = uniqueIds.filter((id) => inCart.has(id));
+    const missing = uniqueIds.filter((id) => !inCart.has(id));
+
+    if (removed.length === 0) {
+      return { success: true, cart: session.cart, removed, missing };
     }
 
     const updated = await this.sessionService.mutateSession(
       businessId,
       clientPhone,
       (current) => {
-        current.cart = current.cart.filter((item) => item.item_id !== itemId);
+        current.cart = current.cart.filter(
+          (item) => !removed.includes(item.item_id),
+        );
       },
     );
 
-    return { success: true, cart: updated.cart };
+    return { success: true, cart: updated.cart, removed, missing };
   }
 
   async getCartSummary(

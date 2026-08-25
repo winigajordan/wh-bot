@@ -32,7 +32,7 @@ describe('RestaurantOrderingToolsService', () => {
       providers: [
         RestaurantOrderingToolsService,
         { provide: MenuService, useValue: { getMenu } },
-        { provide: CartService, useValue: { addToCart, setDeliveryInfo, clearCart } },
+        { provide: CartService, useValue: { addToCart, addItemsToCart: addToCart, setDeliveryInfo, clearCart, removeItemsFromCart: jest.fn() } },
         {
           provide: DeliveryZonesService,
           useValue: { getZoneNames, listZones, matchZone },
@@ -54,8 +54,28 @@ describe('RestaurantOrderingToolsService', () => {
     expect(getMenu).toHaveBeenCalledWith('biz-1', 'Plats');
   });
 
-  it('exécute add_to_cart', async () => {
-    addToCart.mockResolvedValue({ success: true, cart: [] });
+  it('exécute add_to_cart en batch via items', async () => {
+    addToCart.mockResolvedValue({ success: true, cart: [], added: [], failed: [] });
+
+    await service.execute(
+      'add_to_cart',
+      {
+        items: [
+          { item_id: 'item-1', quantity: 2 },
+          { item_id: 'item-2', quantity: 1 },
+        ],
+      },
+      context,
+    );
+
+    expect(addToCart).toHaveBeenCalledWith('biz-1', '22177', [
+      { item_id: 'item-1', quantity: 2, options: [] },
+      { item_id: 'item-2', quantity: 1, options: [] },
+    ]);
+  });
+
+  it('accepte encore add_to_cart legacy item_id/quantity', async () => {
+    addToCart.mockResolvedValue({ success: true, cart: [], added: [], failed: [] });
 
     await service.execute(
       'add_to_cart',
@@ -63,7 +83,9 @@ describe('RestaurantOrderingToolsService', () => {
       context,
     );
 
-    expect(addToCart).toHaveBeenCalledWith('biz-1', '22177', 'item-1', 2, []);
+    expect(addToCart).toHaveBeenCalledWith('biz-1', '22177', [
+      { item_id: 'item-1', quantity: 2, options: [] },
+    ]);
   });
 
   it('valide set_delivery_info en livraison avec frais', async () => {

@@ -2,13 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { isUuid } from '../../common/uuid.util';
 import { ConversationSessionService } from '../../conversation/conversation-session.service';
 import { SessionCartItem, SessionDeliveryInfo } from '../../conversation/session.types';
 import {
   DASHBOARD_ORDER_CREATED,
   DASHBOARD_ORDER_UPDATED,
 } from './dashboard-order.events';
-import { CartService } from '../cart/cart.service';
+import { CartAddItemInput, CartService } from '../cart/cart.service';
 import { DeliveryZonesService } from '../delivery-zones/delivery-zones.service';
 import { MenuService } from '../menu/menu.service';
 import { OrderStatusHistory } from './entities/order-status-history.entity';
@@ -86,6 +87,10 @@ export class OrdersService {
     businessId: string,
     clientPhone: string,
     confirmedByClient: boolean,
+    options: {
+      items?: CartAddItemInput[];
+      note?: string;
+    } = {},
   ): Promise<
     | { success: true; order_number: string; subtotal: number; delivery_fee: number; total: number }
     | {
@@ -94,12 +99,43 @@ export class OrdersService {
           | 'not_confirmed'
           | 'empty_cart'
           | 'delivery_not_set'
-          | 'items_changed';
+          | 'items_changed'
+          | 'invalid_items';
         invalid_items?: InvalidCartItem[];
       }
   > {
     if (!confirmedByClient) {
       return { success: false, reason: 'not_confirmed' };
+    }
+
+    if (options.items && options.items.length > 0) {
+      const replaced = await this.cartService.replaceCartItems(
+        businessId,
+        clientPhone,
+        options.items,
+      );
+      if (!replaced.success) {
+        return {
+          success: false,
+          reason: 'invalid_items',
+          invalid_items: (replaced.failed ?? []).map((entry) => ({
+            item_id: entry.item_id,
+            name: entry.item_id,
+            reason:
+              entry.reason === 'item_unavailable'
+                ? 'item_unavailable'
+                : 'item_not_found',
+          })),
+        };
+      }
+    }
+
+    if (typeof options.note === 'string' && options.note.trim()) {
+      await this.cartService.setOrderNote(
+        businessId,
+        clientPhone,
+        options.note,
+      );
     }
 
     const session = await this.sessionService.getSession(
@@ -345,6 +381,15 @@ export class OrdersService {
     const invalid: InvalidCartItem[] = [];
 
     for (const cartItem of cart) {
+      if (!isUuid(cartItem.item_id)) {
+        invalid.push({
+          item_id: cartItem.item_id,
+          name: cartItem.name,
+          reason: 'item_not_found',
+        });
+        continue;
+      }
+
       const menuItem = await this.menuService.findById(
         businessId,
         cartItem.item_id,

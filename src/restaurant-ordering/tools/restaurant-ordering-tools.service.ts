@@ -68,32 +68,71 @@ export class RestaurantOrderingToolsService {
     context: ToolExecutionContext,
     input: Record<string, unknown>,
   ): Promise<unknown> {
-    const itemId = typeof input.item_id === 'string' ? input.item_id : '';
-    const quantity =
-      typeof input.quantity === 'number' ? input.quantity : Number(input.quantity);
-    const options = Array.isArray(input.options)
-      ? input.options.filter((value) => typeof value === 'string')
-      : [];
-
-    return this.cartService.addToCart(
+    const items = this.parseAddToCartItems(input);
+    return this.cartService.addItemsToCart(
       context.businessId,
       context.clientPhone,
-      itemId,
-      quantity,
-      options,
+      items,
     );
+  }
+
+  private parseAddToCartItems(
+    input: Record<string, unknown>,
+  ): Array<{ item_id: string; quantity: number; options?: unknown[] }> {
+    if (Array.isArray(input.items)) {
+      return input.items
+        .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+        .map((entry) => ({
+          item_id: typeof entry.item_id === 'string' ? entry.item_id : '',
+          quantity:
+            typeof entry.quantity === 'number'
+              ? entry.quantity
+              : Number(entry.quantity),
+          options: Array.isArray(entry.options)
+            ? entry.options.filter((value) => typeof value === 'string')
+            : [],
+        }));
+    }
+
+    // Compat legacy (1 item plat)
+    if (typeof input.item_id === 'string') {
+      return [
+        {
+          item_id: input.item_id,
+          quantity:
+            typeof input.quantity === 'number'
+              ? input.quantity
+              : Number(input.quantity),
+          options: Array.isArray(input.options)
+            ? input.options.filter((value) => typeof value === 'string')
+            : [],
+        },
+      ];
+    }
+
+    return [];
   }
 
   private async removeFromCart(
     context: ToolExecutionContext,
     input: Record<string, unknown>,
   ): Promise<unknown> {
-    const itemId = typeof input.item_id === 'string' ? input.item_id : '';
-    return this.cartService.removeFromCart(
+    const itemIds = this.parseRemoveItemIds(input);
+    return this.cartService.removeItemsFromCart(
       context.businessId,
       context.clientPhone,
-      itemId,
+      itemIds,
     );
+  }
+
+  private parseRemoveItemIds(input: Record<string, unknown>): string[] {
+    if (Array.isArray(input.item_ids)) {
+      return input.item_ids.filter((id): id is string => typeof id === 'string');
+    }
+    if (typeof input.item_id === 'string') {
+      return [input.item_id];
+    }
+    return [];
   }
 
   private async getDeliveryZones(businessId: string): Promise<unknown> {
@@ -179,10 +218,30 @@ export class RestaurantOrderingToolsService {
     input: Record<string, unknown>,
   ): Promise<unknown> {
     const confirmedByClient = input.confirmed_by_client === true;
+    const items = Array.isArray(input.items)
+      ? input.items
+          .filter(
+            (entry): entry is Record<string, unknown> =>
+              !!entry && typeof entry === 'object',
+          )
+          .map((entry) => ({
+            item_id: typeof entry.item_id === 'string' ? entry.item_id : '',
+            quantity:
+              typeof entry.quantity === 'number'
+                ? entry.quantity
+                : Number(entry.quantity),
+            options: Array.isArray(entry.options)
+              ? entry.options.filter((value) => typeof value === 'string')
+              : [],
+          }))
+      : undefined;
+    const note = typeof input.note === 'string' ? input.note : undefined;
+
     return this.ordersService.confirmOrder(
       context.businessId,
       context.clientPhone,
       confirmedByClient,
+      { items, note },
     );
   }
 

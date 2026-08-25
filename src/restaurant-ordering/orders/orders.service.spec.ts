@@ -56,7 +56,7 @@ describe('OrdersService', () => {
       order_note: null,
     });
     findById.mockResolvedValue({
-      id: 'item-1',
+      id: '11111111-1111-4111-8111-111111111111',
       name: 'Thieb',
       price: '3500.00',
       available: true,
@@ -90,7 +90,7 @@ describe('OrdersService', () => {
         },
         {
           provide: CartService,
-          useValue: { getCartSummary, clearCartAndDelivery },
+          useValue: { getCartSummary, clearCartAndDelivery, replaceCartItems: jest.fn(), setOrderNote: jest.fn() },
         },
         {
           provide: MenuService,
@@ -114,7 +114,7 @@ describe('OrdersService', () => {
     getSession.mockResolvedValue({
       cart: [
         {
-          item_id: 'item-1',
+          item_id: '11111111-1111-4111-8111-111111111111',
           name: 'Thieb',
           price: 3500,
           quantity: 1,
@@ -144,7 +144,7 @@ describe('OrdersService', () => {
     getSession.mockResolvedValue({
       cart: [
         {
-          item_id: 'item-1',
+          item_id: '11111111-1111-4111-8111-111111111111',
           name: 'Thieb',
           price: 3500,
           quantity: 1,

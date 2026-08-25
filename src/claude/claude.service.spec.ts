@@ -189,8 +189,78 @@ describe('ClaudeService', () => {
     expect(create.mock.calls[1][0].tools).toBeUndefined();
     expect(create.mock.calls[1][0].messages.at(-1)).toEqual({
       role: 'user',
-      content:
-        'Tu as atteint la limite d’appels d’outils pour cette réponse. Réponds maintenant au client en texte avec les informations déjà obtenues. N’utilise plus d’outils.',
+      content: expect.stringContaining(
+        'Tu as atteint la limite d’appels d’outils pour cette réponse.',
+      ),
     });
+    expect(create.mock.calls[1][0].messages.at(-1).content).toContain(
+      'confirm_order n’a PAS réussi',
+    );
+  });
+
+  it('indique au fallback si confirm_order a réussi avant la limite', async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ClaudeService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (key: string) => {
+              if (key === 'anthropic.apiKey') return 'test-key';
+              if (key === 'anthropic.model') return 'claude-sonnet-4-6';
+              if (key === 'anthropic.toolMaxIterations') return 1;
+              return undefined;
+            },
+          },
+        },
+      ],
+    }).compile();
+
+    const limitedService = module.get(ClaudeService);
+
+    create
+      .mockResolvedValueOnce({
+        stop_reason: 'tool_use',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_1',
+            name: 'confirm_order',
+            input: { confirmed_by_client: true },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'Commande CMD-0009 confirmée.' }],
+      });
+
+    const executeTool = jest.fn().mockResolvedValue({
+      success: true,
+      order_number: 'CMD-0009',
+      total: 5000,
+    });
+
+    await expect(
+      limitedService.generateReply(
+        'prompt',
+        [{ role: 'user', content: 'Oui confirme' }],
+        [
+          {
+            name: 'confirm_order',
+            description: 'Confirm',
+            input_schema: { type: 'object', properties: {} },
+          },
+        ],
+        executeTool,
+      ),
+    ).resolves.toBe('Commande CMD-0009 confirmée.');
+
+    expect(create.mock.calls[1][0].messages.at(-1).content).toContain(
+      'CMD-0009',
+    );
+    expect(create.mock.calls[1][0].messages.at(-1).content).toContain(
+      'EST bien confirmée',
+    );
   });
 });

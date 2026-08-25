@@ -22,10 +22,13 @@ describe('restaurantOrderingModuleDefinition', () => {
 
     expect(prompt).toContain('get_menu');
     expect(prompt).toContain('add_to_cart');
+    expect(prompt).toContain('items:');
     expect(prompt).toContain('confirm_order');
     expect(prompt).toContain('clear_cart');
     expect(prompt).toContain('Budget tools');
     expect(prompt).toMatch(/inventer/i);
+    expect(prompt).toMatch(/success:\s*true/i);
+    expect(prompt).toMatch(/Jamais un appel add_to_cart par plat/i);
   });
 
   it('expose tous les tools de commande', () => {
