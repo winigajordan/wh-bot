@@ -104,7 +104,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] Tools : `get_delivery_zones`, `set_delivery_info`
 - [x] `OrdersService` + `confirm_order` (revalidation stricte) + `get_order_status`
 - [x] Prompt resto : flow commande complet
-- [ ] WebSocket dashboard à la confirmation
+- [x] WebSocket dashboard à la confirmation
 
 ### Phase 5 — Dashboard ← **en cours**
 
@@ -113,11 +113,12 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] API commandes (`GET/PATCH /dashboard/orders`)
 - [x] App Angular `wini-food` — login + shell dashboard Commandes
 - [x] Liste commandes Angular branchée sur l’API (+ changement de statut)
-- [ ] WebSocket nouvelle commande
+- [x] Filtre date + Aujourd’hui, annulation (`cancelled`) depuis `received`
+- [x] WebSocket nouvelle commande (`order.created` / `order.updated`)
 - [ ] Écrans menu / zones / review
 - [ ] Plus tard : register / refresh token
 
-**Prochaine étape : WebSocket « nouvelle commande ».**
+**Prochaine étape : écrans Menu / Zones.**
 
 ---
 

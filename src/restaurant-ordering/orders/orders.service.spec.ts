@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConversationSessionService } from '../../conversation/conversation-session.service';
 import { CartService } from '../cart/cart.service';
@@ -22,6 +23,7 @@ describe('OrdersService', () => {
   const clearCartAndDelivery = jest.fn();
   const findById = jest.fn();
   const findZoneById = jest.fn();
+  const eventEmit = jest.fn();
 
   beforeEach(async () => {
     orderSave.mockReset();
@@ -36,9 +38,14 @@ describe('OrdersService', () => {
     clearCartAndDelivery.mockReset();
     findById.mockReset();
     findZoneById.mockReset();
+    eventEmit.mockReset();
 
     orderCount.mockResolvedValue(0);
-    orderSave.mockImplementation(async (order) => ({ ...order, id: 'order-1' }));
+    orderSave.mockImplementation(async (order) => ({
+      ...order,
+      id: 'order-1',
+      createdAt: new Date('2026-08-25T00:00:00.000Z'),
+    }));
     historySave.mockResolvedValue(undefined);
     getCartSummary.mockResolvedValue({
       subtotal: 3500,
@@ -92,6 +99,10 @@ describe('OrdersService', () => {
         {
           provide: DeliveryZonesService,
           useValue: { findById: findZoneById },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: eventEmit },
         },
       ],
     }).compile();

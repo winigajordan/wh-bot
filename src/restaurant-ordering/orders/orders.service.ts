@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConversationSessionService } from '../../conversation/conversation-session.service';
 import { SessionCartItem, SessionDeliveryInfo } from '../../conversation/session.types';
+import {
+  DASHBOARD_ORDER_CREATED,
+  DASHBOARD_ORDER_UPDATED,
+} from './dashboard-order.events';
 import { CartService } from '../cart/cart.service';
 import { DeliveryZonesService } from '../delivery-zones/delivery-zones.service';
 import { MenuService } from '../menu/menu.service';
@@ -74,6 +79,7 @@ export class OrdersService {
     private readonly cartService: CartService,
     private readonly menuService: MenuService,
     private readonly deliveryZonesService: DeliveryZonesService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async confirmOrder(
@@ -169,6 +175,15 @@ export class OrdersService {
     );
 
     await this.cartService.clearCartAndDelivery(businessId, clientPhone);
+
+    const dashboardOrder = this.toDashboardDto({
+      ...order,
+      createdAt: order.createdAt ?? new Date(),
+    });
+    this.eventEmitter.emit(DASHBOARD_ORDER_CREATED, {
+      businessId,
+      order: dashboardOrder,
+    });
 
     return {
       success: true,
@@ -298,7 +313,13 @@ export class OrdersService {
       }),
     );
 
-    return { success: true, order: this.toDashboardDto(saved) };
+    const dashboardOrder = this.toDashboardDto(saved);
+    this.eventEmitter.emit(DASHBOARD_ORDER_UPDATED, {
+      businessId,
+      order: dashboardOrder,
+    });
+
+    return { success: true, order: dashboardOrder };
   }
 
   private toDashboardDto(order: Order): DashboardOrderDto {

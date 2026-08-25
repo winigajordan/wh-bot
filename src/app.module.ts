@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BusinessesModule } from './businesses/businesses.module';
@@ -22,6 +23,7 @@ import { WhatsappClientModule } from './whatsapp-client/whatsapp-client.module';
       envFilePath: '.env',
       load: [configuration],
     }),
+    EventEmitterModule.forRoot(),
     RedisModule,
     DatabaseModule,
     BusinessesModule,

@@ -9,6 +9,39 @@ Format d’un bloc :
 
 ##########
 
+## Phase 5 — WebSocket dashboard commandes
+
+Date : 25 août 2026, 02:20
+
+### Comportement
+
+- Namespace Socket.IO `/dashboard`, auth JWT (`handshake.auth.token`)
+- Room multi-tenant `business:{businessId}`
+- À `confirm_order` → event `order.created` vers le resto concerné
+- À `PATCH` statut (dont annulation) → event `order.updated`
+- Angular : connexion au login dashboard, push live sur le board (filtre date respecté)
+
+### Fichiers
+
+Backend (`whatsapp-bot/`) :
+- `src/dashboard-api/orders/dashboard-orders.gateway.ts`
+- `src/restaurant-ordering/orders/dashboard-order.events.ts`
+- `src/restaurant-ordering/orders/orders.service.ts` (emit)
+- `src/app.module.ts` (`EventEmitterModule`)
+
+Frontend (`wini-food/`) :
+- `src/app/core/realtime/dashboard-realtime.service.ts`
+- `src/app/features/dashboard/dashboard-shell.component.ts`
+- `src/app/features/dashboard/orders/orders.component.ts`
+
+### Non fait (volontaire)
+
+- Notif navigateur / son
+- Sync forcée hors filtre date
+- Notif WhatsApp client au changement de statut
+
+##########
+
 ## Phase 5 — Liste commandes Angular
 
 Date : 25 août 2026, 01:00
