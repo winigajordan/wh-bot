@@ -9,6 +9,7 @@ import {
   MenuCategoryDto,
   MenuItemDto,
   MenuOption,
+  MenuOptionChoice,
   SelectedCartOption,
 } from './menu.types';
 
@@ -276,7 +277,7 @@ export class MenuService {
       let name = '';
       let required = false;
       let price = 0;
-      let choices: string[] = [];
+      let choices: MenuOptionChoice[] = [];
 
       if (typeof entry === 'string') {
         name = entry.trim();
@@ -292,22 +293,7 @@ export class MenuService {
           typeof raw.price === 'number' ? raw.price : Number(raw.price);
         price = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0;
         if (Array.isArray(raw.choices)) {
-          const choiceSeen = new Set<string>();
-          for (const choice of raw.choices) {
-            if (typeof choice !== 'string') {
-              continue;
-            }
-            const label = choice.trim();
-            if (!label) {
-              continue;
-            }
-            const choiceKey = label.toLowerCase();
-            if (choiceSeen.has(choiceKey)) {
-              continue;
-            }
-            choiceSeen.add(choiceKey);
-            choices.push(label);
-          }
+          choices = this.normalizeChoices(raw.choices);
         }
       }
 
@@ -322,7 +308,8 @@ export class MenuService {
       options.push({
         name,
         required,
-        price,
+        // Si variantes : le supplément est sur chaque choix
+        price: choices.length > 0 ? 0 : price,
         ...(choices.length > 0 ? { choices } : {}),
       });
     }
@@ -330,10 +317,87 @@ export class MenuService {
     return options;
   }
 
+  normalizeChoices(value: unknown[]): MenuOptionChoice[] {
+    const seen = new Set<string>();
+    const choices: MenuOptionChoice[] = [];
+
+    for (const entry of value) {
+      let name = '';
+      let price = 0;
+
+      if (typeof entry === 'string') {
+        name = entry.trim();
+      } else if (entry && typeof entry === 'object') {
+        const raw = entry as Record<string, unknown>;
+        if (typeof raw.name === 'string') {
+          name = raw.name.trim();
+        } else if (typeof raw.label === 'string') {
+          name = raw.label.trim();
+        }
+        const rawPrice =
+          typeof raw.price === 'number' ? raw.price : Number(raw.price);
+        if (Number.isFinite(rawPrice) && rawPrice > 0) {
+          price = rawPrice;
+        }
+      }
+
+      if (!name) {
+        continue;
+      }
+      const key = name.toLowerCase();
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      choices.push({ name, price });
+    }
+
+    return choices;
+  }
+
+  /**
+   * À partir de variantes à prix absolus (ex. MM:5500, GM:6000),
+   * produit un prix de base (= min) + option required avec suppléments.
+   */
+  variantsToOption(
+    variants: Array<{ name: string; price: number }>,
+    optionName = 'Format',
+  ): { basePrice: number; option: MenuOption } | null {
+    const cleaned = variants
+      .map((variant) => ({
+        name: variant.name.trim(),
+        price: variant.price,
+      }))
+      .filter(
+        (variant) =>
+          variant.name &&
+          Number.isFinite(variant.price) &&
+          variant.price >= 0,
+      );
+
+    if (cleaned.length < 2) {
+      return null;
+    }
+
+    const basePrice = Math.min(...cleaned.map((variant) => variant.price));
+    return {
+      basePrice,
+      option: {
+        name: optionName.trim() || 'Format',
+        required: true,
+        price: 0,
+        choices: cleaned.map((variant) => ({
+          name: variant.name,
+          price: Math.max(0, variant.price - basePrice),
+        })),
+      },
+    };
+  }
+
   /**
    * Valide les options choisies contre le menu.
    * - option simple : passer son name
-   * - option avec choices[] : passer le nom d’UNE variante (ex. "Fanta")
+   * - option avec choices[] : passer le nom d’UNE variante (ex. "Fanta", "GM")
    */
   resolveSelectedOptions(
     menuOptionsRaw: unknown,
@@ -358,18 +422,27 @@ export class MenuService {
       })
       .filter(Boolean);
 
-    type Match = { option: MenuOption; choice: string | null };
+    type Match = {
+      option: MenuOption;
+      choice: string | null;
+      price: number;
+    };
     const tokenToMatch = new Map<string, Match>();
     for (const option of menuOptions) {
       const choices = option.choices ?? [];
       if (choices.length > 0) {
         for (const choice of choices) {
-          tokenToMatch.set(choice.toLowerCase(), { option, choice });
+          tokenToMatch.set(choice.name.toLowerCase(), {
+            option,
+            choice: choice.name,
+            price: choice.price,
+          });
         }
       } else {
         tokenToMatch.set(option.name.toLowerCase(), {
           option,
           choice: null,
+          price: option.price,
         });
       }
     }
@@ -392,7 +465,7 @@ export class MenuService {
       coveredParents.add(parentKey);
       selected.push({
         name: match.option.name,
-        price: match.option.price,
+        price: match.price,
         choice: match.choice,
       });
     }
@@ -408,7 +481,7 @@ export class MenuService {
       )
       .map((option) =>
         option.choices && option.choices.length > 0
-          ? `${option.name} (${option.choices.join(' | ')})`
+          ? `${option.name} (${option.choices.map((c) => c.name).join(' | ')})`
           : option.name,
       );
 
@@ -480,13 +553,41 @@ export class MenuService {
   }
 
   private toDto(item: MenuItem): MenuItemDto {
+    const price = Number(item.price);
+    const options = this.normalizeOptions(item.options);
     return {
       id: item.id,
       name: item.name,
-      price: Number(item.price),
+      price,
+      price_label: this.formatItemPriceLabel(price, options),
       description: item.description,
       available: item.available,
-      options: this.normalizeOptions(item.options),
+      options,
     };
+  }
+
+  formatItemPriceLabel(basePrice: number, options: MenuOption[]): string {
+    const variantOption =
+      options.find(
+        (option) =>
+          option.required && option.choices && option.choices.length > 0,
+      ) ??
+      options.find((option) => option.choices && option.choices.length > 0);
+
+    if (variantOption?.choices && variantOption.choices.length > 0) {
+      return variantOption.choices
+        .map(
+          (choice) =>
+            `${choice.name} ${this.formatXof(basePrice + choice.price)}`,
+        )
+        .join(' · ');
+    }
+
+    return this.formatXof(basePrice);
+  }
+
+  formatXof(amount: number): string {
+    const value = Number.isFinite(amount) ? Math.round(amount) : 0;
+    return `${value.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ')} F`;
   }
 }

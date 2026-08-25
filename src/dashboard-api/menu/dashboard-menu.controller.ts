@@ -254,10 +254,35 @@ export class DashboardMenuController {
         throw new BadRequestException('option.choices doit être un tableau');
       }
       for (const choice of raw.choices) {
-        if (typeof choice !== 'string' || !choice.trim()) {
+        if (typeof choice === 'string') {
+          if (!choice.trim()) {
+            throw new BadRequestException(
+              'option.choices ne doit contenir que des libellés non vides',
+            );
+          }
+          continue;
+        }
+        if (!choice || typeof choice !== 'object') {
           throw new BadRequestException(
-            'option.choices ne doit contenir que des strings non vides',
+            'option.choices doit être string[] ou { name, price? }[]',
           );
+        }
+        const choiceRaw = choice as Record<string, unknown>;
+        if (typeof choiceRaw.name !== 'string' || !choiceRaw.name.trim()) {
+          throw new BadRequestException(
+            'choice.name requis (string non vide)',
+          );
+        }
+        if (choiceRaw.price !== undefined) {
+          const choicePrice =
+            typeof choiceRaw.price === 'number'
+              ? choiceRaw.price
+              : Number(choiceRaw.price);
+          if (!Number.isFinite(choicePrice) || choicePrice < 0) {
+            throw new BadRequestException(
+              'choice.price doit être un nombre ≥ 0',
+            );
+          }
         }
       }
     }

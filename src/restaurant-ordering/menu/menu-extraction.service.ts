@@ -327,12 +327,6 @@ export class MenuExtractionService {
       return null;
     }
 
-    const price =
-      typeof raw.price === 'number' ? raw.price : Number(raw.price);
-    if (!Number.isFinite(price) || price < 0) {
-      return null;
-    }
-
     let description: string | null = null;
     if (typeof raw.description === 'string') {
       description = raw.description.trim() || null;
@@ -343,13 +337,93 @@ export class MenuExtractionService {
     const available =
       typeof raw.available === 'boolean' ? raw.available : true;
 
+    let options = this.menuService.normalizeOptions(raw.options);
+    let price =
+      typeof raw.price === 'number' ? raw.price : Number(raw.price);
+
+    const variants = this.readVariants(raw.variants ?? raw.prices);
+    if (variants.length >= 2) {
+      const optionName =
+        typeof raw.variant_label === 'string' && raw.variant_label.trim()
+          ? raw.variant_label.trim()
+          : this.guessVariantOptionName(variants.map((v) => v.name));
+      const converted = this.menuService.variantsToOption(
+        variants,
+        optionName,
+      );
+      if (converted) {
+        price = converted.basePrice;
+        // Remplace une éventuelle option Format déjà présente
+        options = [
+          converted.option,
+          ...options.filter(
+            (option) =>
+              option.name.toLowerCase() !==
+              converted.option.name.toLowerCase(),
+          ),
+        ];
+      }
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+      return null;
+    }
+
     return {
       name,
       price,
       description,
       available,
-      options: this.menuService.normalizeOptions(raw.options),
+      options,
     };
+  }
+
+  private readVariants(
+    value: unknown,
+  ): Array<{ name: string; price: number }> {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    const variants: Array<{ name: string; price: number }> = [];
+    for (const entry of value) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const raw = entry as Record<string, unknown>;
+      const name =
+        typeof raw.name === 'string'
+          ? raw.name.trim()
+          : typeof raw.label === 'string'
+            ? raw.label.trim()
+            : '';
+      const price =
+        typeof raw.price === 'number' ? raw.price : Number(raw.price);
+      if (!name || !Number.isFinite(price) || price < 0) {
+        continue;
+      }
+      variants.push({ name, price });
+    }
+    return variants;
+  }
+
+  private guessVariantOptionName(labels: string[]): string {
+    const joined = labels.map((label) => label.toLowerCase()).join('|');
+    if (
+      joined.includes('mm') ||
+      joined.includes('gm') ||
+      joined.includes('moyen') ||
+      joined.includes('grand')
+    ) {
+      return 'Taille';
+    }
+    if (joined.includes('sandwich') || joined.includes('plat')) {
+      return 'Format';
+    }
+    if (joined.includes('perso') || joined.includes('duo')) {
+      return 'Format';
+    }
+    return 'Format';
   }
 
   private toDto(extraction: MenuExtraction): MenuExtractionDto {

@@ -21,7 +21,7 @@ export const ADD_TO_CART_TOOL: ClaudeToolDefinition = {
               type: 'array',
               items: { type: 'string' },
               description:
-                'Sélections : name exact d’une option simple, OU nom d’une variante (choices[]) ex. "Fanta". Inclure une entrée pour chaque option required. Ne pas inventer de libellés hors get_menu.',
+                'Sélections : name exact d’une option simple, OU nom d’une variante (choices[].name) ex. "GM", "Fanta", "Plat". Inclure une entrée pour chaque option required. Ne pas inventer de libellés hors get_menu.',
             },
           },
           required: ['item_id', 'quantity'],
@@ -138,7 +138,7 @@ export const CONFIRM_ORDER_TOOL: ClaudeToolDefinition = {
               type: 'array',
               items: { type: 'string' },
               description:
-                'Sélections : name exact d’une option simple, OU nom d’une variante (choices[]) ex. "Fanta". Inclure une entrée pour chaque option required.',
+                'Sélections : name exact d’une option simple, OU nom d’une variante (choices[].name) ex. "GM", "Fanta", "Plat". Inclure une entrée pour chaque option required.',
             },
           },
           required: ['item_id', 'quantity'],

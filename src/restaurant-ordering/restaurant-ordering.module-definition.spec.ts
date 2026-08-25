@@ -30,7 +30,8 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(prompt).toMatch(/success:\s*true/i);
     expect(prompt).toMatch(/Jamais un appel add_to_cart par plat/i);
     expect(prompt).toMatch(/required:\s*true/i);
-    expect(prompt).toMatch(/options/i);
+    expect(prompt).toMatch(/Présentation du menu/i);
+    expect(prompt).toMatch(/price_label/i);
   });
 
   it('expose tous les tools de commande', () => {
