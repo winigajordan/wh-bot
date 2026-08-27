@@ -7,6 +7,27 @@ jest.mock('@anthropic-ai/sdk');
 
 const create = jest.fn();
 
+function configGet(overrides: Record<string, unknown> = {}) {
+  return (key: string) => {
+    if (key in overrides) {
+      return overrides[key];
+    }
+    if (key === 'anthropic.apiKey') {
+      return 'test-key';
+    }
+    if (key === 'anthropic.model') {
+      return 'claude-sonnet-4-6';
+    }
+    if (key === 'anthropic.toolMaxIterations') {
+      return 5;
+    }
+    if (key === 'anthropic.promptCacheEnabled') {
+      return false;
+    }
+    return undefined;
+  };
+}
+
 describe('ClaudeService', () => {
   let service: ClaudeService;
 
@@ -21,20 +42,7 @@ describe('ClaudeService', () => {
         ClaudeService,
         {
           provide: ConfigService,
-          useValue: {
-            get: (key: string) => {
-              if (key === 'anthropic.apiKey') {
-                return 'test-key';
-              }
-              if (key === 'anthropic.model') {
-                return 'claude-sonnet-4-6';
-              }
-              if (key === 'anthropic.toolMaxIterations') {
-                return 5;
-              }
-              return undefined;
-            },
-          },
+          useValue: { get: configGet() },
         },
       ],
     }).compile();
@@ -46,6 +54,7 @@ describe('ClaudeService', () => {
     create.mockResolvedValue({
       stop_reason: 'end_turn',
       content: [{ type: 'text', text: 'Bonjour, je vous écoute.' }],
+      usage: { input_tokens: 10, output_tokens: 5 },
     });
 
     await expect(
@@ -68,6 +77,7 @@ describe('ClaudeService', () => {
     create.mockResolvedValue({
       stop_reason: 'end_turn',
       content: [{ type: 'text', text: 'ok' }],
+      usage: { input_tokens: 10, output_tokens: 5 },
     });
 
     const tools = [
@@ -95,10 +105,12 @@ describe('ClaudeService', () => {
             input: { category: 'Plats' },
           },
         ],
+        usage: { input_tokens: 10, output_tokens: 5 },
       })
       .mockResolvedValueOnce({
         stop_reason: 'end_turn',
         content: [{ type: 'text', text: 'Voici nos plats.' }],
+        usage: { input_tokens: 20, output_tokens: 8 },
       });
 
     const executeTool = jest.fn().mockResolvedValue({ categories: [] });
@@ -131,12 +143,7 @@ describe('ClaudeService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: (key: string) => {
-              if (key === 'anthropic.apiKey') return 'test-key';
-              if (key === 'anthropic.model') return 'claude-sonnet-4-6';
-              if (key === 'anthropic.toolMaxIterations') return 1;
-              return undefined;
-            },
+            get: configGet({ 'anthropic.toolMaxIterations': 1 }),
           },
         },
       ],
@@ -155,6 +162,7 @@ describe('ClaudeService', () => {
             input: {},
           },
         ],
+        usage: { input_tokens: 10, output_tokens: 5 },
       })
       .mockResolvedValueOnce({
         stop_reason: 'end_turn',
@@ -164,6 +172,7 @@ describe('ClaudeService', () => {
             text: 'Voici ce que j’ai pour l’instant, on continue ?',
           },
         ],
+        usage: { input_tokens: 20, output_tokens: 8 },
       });
 
     const executeTool = jest.fn().mockResolvedValue({ categories: [] });
@@ -205,12 +214,7 @@ describe('ClaudeService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: (key: string) => {
-              if (key === 'anthropic.apiKey') return 'test-key';
-              if (key === 'anthropic.model') return 'claude-sonnet-4-6';
-              if (key === 'anthropic.toolMaxIterations') return 1;
-              return undefined;
-            },
+            get: configGet({ 'anthropic.toolMaxIterations': 1 }),
           },
         },
       ],
@@ -229,10 +233,12 @@ describe('ClaudeService', () => {
             input: { confirmed_by_client: true },
           },
         ],
+        usage: { input_tokens: 10, output_tokens: 5 },
       })
       .mockResolvedValueOnce({
         stop_reason: 'end_turn',
         content: [{ type: 'text', text: 'Commande CMD-0009 confirmée.' }],
+        usage: { input_tokens: 20, output_tokens: 8 },
       });
 
     const executeTool = jest.fn().mockResolvedValue({
@@ -262,5 +268,117 @@ describe('ClaudeService', () => {
     expect(create.mock.calls[1][0].messages.at(-1).content).toContain(
       'EST bien confirmée',
     );
+  });
+
+  describe('prompt caching', () => {
+    async function serviceWithCache(
+      enabled: boolean,
+    ): Promise<ClaudeService> {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ClaudeService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: configGet({ 'anthropic.promptCacheEnabled': enabled }),
+            },
+          },
+        ],
+      }).compile();
+      return module.get(ClaudeService);
+    }
+
+    const twoTools = [
+      {
+        name: 'get_menu',
+        description: 'Menu',
+        input_schema: { type: 'object', properties: {} },
+      },
+      {
+        name: 'get_order_status',
+        description: 'Status',
+        input_schema: { type: 'object', properties: {} },
+      },
+    ];
+
+    it('ajoute cache_control sur system + dernier tool si activé', async () => {
+      const cached = await serviceWithCache(true);
+      create.mockResolvedValue({
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'ok' }],
+        usage: {
+          input_tokens: 100,
+          output_tokens: 10,
+          cache_creation_input_tokens: 80,
+          cache_read_input_tokens: 0,
+        },
+      });
+
+      await cached.generateReply('prompt long', [], twoTools);
+
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          system: [
+            {
+              type: 'text',
+              text: 'prompt long',
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
+          tools: [
+            expect.objectContaining({ name: 'get_menu' }),
+            expect.objectContaining({
+              name: 'get_order_status',
+              cache_control: { type: 'ephemeral' },
+            }),
+          ],
+        }),
+      );
+      expect(create.mock.calls[0][0].tools[0].cache_control).toBeUndefined();
+    });
+
+    it('ne met pas de cache_control si désactivé', async () => {
+      const uncached = await serviceWithCache(false);
+      create.mockResolvedValue({
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'ok' }],
+        usage: { input_tokens: 10, output_tokens: 5 },
+      });
+
+      await uncached.generateReply('prompt', [], twoTools);
+
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          system: 'prompt',
+          tools: twoTools,
+        }),
+      );
+      expect(create.mock.calls[0][0].tools[1].cache_control).toBeUndefined();
+    });
+
+    it('n’utilise pas le cache pour extractMenuFromImages', async () => {
+      const cached = await serviceWithCache(true);
+      create.mockResolvedValue({
+        stop_reason: 'end_turn',
+        content: [
+          {
+            type: 'text',
+            text: '{"categories":[]}',
+          },
+        ],
+        usage: { input_tokens: 50, output_tokens: 20 },
+      });
+
+      await cached.extractMenuFromImages([
+        {
+          mediaType: 'image/jpeg',
+          base64: Buffer.from('fake').toString('base64'),
+        },
+      ]);
+
+      const call = create.mock.calls[0][0];
+      expect(typeof call.system).toBe('string');
+      expect(call.tools).toBeUndefined();
+    });
   });
 });

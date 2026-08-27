@@ -168,19 +168,83 @@ export class ClaudeService {
     messages: AnthropicMessageParam[],
     tools?: Anthropic.Tool[],
     maxTokens = 1024,
+    options: { usePromptCache?: boolean } = {},
   ): Promise<Anthropic.Message> {
     const apiKey = this.config.get<string>('anthropic.apiKey') ?? '';
     if (!apiKey) {
       throw new Error('ANTHROPIC_API_KEY manquante');
     }
 
-    return this.client.messages.create({
+    const useCache = options.usePromptCache !== false;
+    const response = await this.client.messages.create({
       model: this.model,
       max_tokens: maxTokens,
-      system: systemPrompt,
+      system: useCache
+        ? this.buildCachedSystem(systemPrompt)
+        : systemPrompt,
       messages,
-      ...(tools?.length ? { tools } : {}),
+      ...(tools?.length
+        ? { tools: useCache ? this.buildCachedTools(tools) : tools }
+        : {}),
     });
+
+    this.logUsage(response.usage);
+    return response;
+  }
+
+  private isPromptCacheEnabled(): boolean {
+    return this.config.get<boolean>('anthropic.promptCacheEnabled') !== false;
+  }
+
+  private buildCachedSystem(
+    systemPrompt: string,
+  ): string | Anthropic.TextBlockParam[] {
+    if (!this.isPromptCacheEnabled()) {
+      return systemPrompt;
+    }
+    return [
+      {
+        type: 'text',
+        text: systemPrompt,
+        cache_control: { type: 'ephemeral' },
+      },
+    ];
+  }
+
+  /**
+   * Pose cache_control uniquement sur le DERNIER tool.
+   * Prérequis : la liste tools doit être dans le même ordre à chaque appel
+   * (ORDERING_TOOLS est un tableau littéral figé — ne pas trier/filtrer).
+   */
+  private buildCachedTools(tools: Anthropic.Tool[]): Anthropic.Tool[] {
+    if (!this.isPromptCacheEnabled()) {
+      return tools;
+    }
+    return tools.map((tool, index) =>
+      index === tools.length - 1
+        ? { ...tool, cache_control: { type: 'ephemeral' as const } }
+        : tool,
+    );
+  }
+
+  private logUsage(usage: Anthropic.Usage | undefined): void {
+    if (!usage) {
+      return;
+    }
+    const cacheWrite =
+      'cache_creation_input_tokens' in usage &&
+      typeof usage.cache_creation_input_tokens === 'number'
+        ? usage.cache_creation_input_tokens
+        : 0;
+    const cacheRead =
+      'cache_read_input_tokens' in usage &&
+      typeof usage.cache_read_input_tokens === 'number'
+        ? usage.cache_read_input_tokens
+        : 0;
+    this.logger.debug(
+      `Claude usage in=${usage.input_tokens} out=${usage.output_tokens} ` +
+        `cache_write=${cacheWrite} cache_read=${cacheRead}`,
+    );
   }
 
   /**
@@ -239,6 +303,7 @@ export class ClaudeService {
       [{ role: 'user', content }],
       undefined,
       8192,
+      { usePromptCache: false },
     );
 
     const rawText = this.extractText(response.content);

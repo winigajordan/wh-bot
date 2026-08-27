@@ -26,6 +26,8 @@ export default () => ({
       process.env.CLAUDE_TOOL_MAX_ITERATIONS || '8',
       10,
     ),
+    /** false explicite pour désactiver ; true par défaut */
+    promptCacheEnabled: process.env.ANTHROPIC_PROMPT_CACHE_ENABLED !== 'false',
   },
   conversation: {
     debounceDelayMs: parseInt(

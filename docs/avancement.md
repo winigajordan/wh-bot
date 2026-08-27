@@ -119,6 +119,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] Catégories menu (`menu_categories` + `GET/POST /dashboard/menu/categories` + UI grille)
 - [x] Écran zones de livraison (`GET/POST/PATCH/DELETE /dashboard/zones` + UI Angular)
 - [x] Écran review menu (upload image → Vision → review → publish)
+- [x] Prompt caching Anthropic (system + dernier tool, flag `ANTHROPIC_PROMPT_CACHE_ENABLED`) — voir [prompt-caching-implementation.md](./prompt-caching-implementation.md)
 - [ ] Plus tard : register / refresh token ; PDF multi-pages
 
 **Prochaine étape : polish dashboard / Phase 6 notifs WhatsApp.**

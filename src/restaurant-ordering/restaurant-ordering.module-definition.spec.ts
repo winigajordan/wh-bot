@@ -58,4 +58,26 @@ describe('restaurantOrderingModuleDefinition', () => {
     );
     expect(restaurantOrderingModuleDefinition.getTools()).toHaveLength(10);
   });
+
+  it('garde un ordre figé des tools (breakpoint cache = dernier)', () => {
+    const tools = restaurantOrderingModuleDefinition.getTools();
+    expect(tools.map((tool) => tool.name)).toEqual([
+      'get_menu',
+      'add_to_cart',
+      'remove_from_cart',
+      'clear_cart',
+      'get_cart_summary',
+      'get_delivery_zones',
+      'set_delivery_info',
+      'set_order_note',
+      'confirm_order',
+      'get_order_status',
+    ]);
+    expect(tools.at(-1)?.name).toBe('get_order_status');
+    // Même référence / même contenu à chaque appel — pas de tri dynamique
+    expect(restaurantOrderingModuleDefinition.getTools()).toBe(ORDERING_TOOLS);
+    expect(restaurantOrderingModuleDefinition.getTools()).toEqual(
+      restaurantOrderingModuleDefinition.getTools(),
+    );
+  });
 });

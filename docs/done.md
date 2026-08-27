@@ -9,6 +9,54 @@ Format d’un bloc :
 
 ##########
 
+## Prompt caching Anthropic (system + tools)
+
+Date : 27 août 2026, 00:55
+
+### Comportement
+
+- Flag `ANTHROPIC_PROMPT_CACHE_ENABLED` (défaut `true` ; `false` explicite pour désactiver)
+- Sur chaque `messages.create` bot (hors Vision) :
+  - `system` en bloc texte avec `cache_control: { type: 'ephemeral' }`
+  - `cache_control` uniquement sur le **dernier** tool de la liste
+- `ORDERING_TOOLS` : ordre **figé** (dernier = `get_order_status`) — pas de tri/filtre dynamique, sinon le breakpoint ne matche plus
+- `extractMenuFromImages` : **sans** cache (`usePromptCache: false`)
+- Log DEBUG usage : `cache_write` / `cache_read` (`cache_creation_input_tokens` / `cache_read_input_tokens`)
+
+### Validation manuelle
+
+```bash
+npm run verify:prompt-cache
+```
+
+Résultat mesuré (system resto + 10 tools) :
+
+- Appel 1 : `cache_write=4377` `cache_read=0`
+- Appel 2 : `cache_write=0` `cache_read=4377`
+
+Seuil Sonnet (~1024 tokens) largement dépassé.
+
+### Fichiers
+
+- `docs/prompt-caching-implementation.md` — plan
+- `src/config/configuration.ts` — `anthropic.promptCacheEnabled`
+- `.env.example` / `.env` — `ANTHROPIC_PROMPT_CACHE_ENABLED=true`
+- `src/claude/claude.service.ts` — helpers + `createMessage` + logs
+- `src/claude/claude.service.spec.ts` — cache on/off + Vision exclue
+- `src/restaurant-ordering/tools/ordering.tools.ts` — commentaire ordre figé
+- `src/restaurant-ordering/restaurant-ordering.module-definition.spec.ts` — assert ordre tools
+- `src/scripts/verify-prompt-cache.ts` — script §8.2
+- `package.json` — `verify:prompt-cache`
+- `docs/avancement.md` — case cochée
+
+### Non fait (volontaire)
+
+- Cache sur l’historique messages
+- Split prompt statique module / variable business (partage cache multi-restos)
+- Cache sur tool_results / Vision
+
+##########
+
 ## Phase 5 — WebSocket dashboard commandes
 
 Date : 25 août 2026, 02:20

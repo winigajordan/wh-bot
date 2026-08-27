@@ -26,7 +26,8 @@
     "seed": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-test-businesses.ts",
     "seed:menu": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-test-menu.ts",
     "seed:zones": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-delivery-zones.ts",
-    "seed:users": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-test-users.ts"
+    "seed:users": "TS_NODE_PROJECT=tsconfig.typeorm.json ts-node src/database/seeds/seed-test-users.ts",
+    "verify:prompt-cache": "ts-node --transpile-only src/scripts/verify-prompt-cache.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

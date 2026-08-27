@@ -165,6 +165,11 @@ export const GET_ORDER_STATUS_TOOL: ClaudeToolDefinition = {
   },
 };
 
+/**
+ * Ordre FIGÉ — ne pas trier / filtrer / réordonner à l’exécution.
+ * Le prompt caching pose cache_control sur le DERNIER tool (get_order_status).
+ * Si l’ordre change d’un appel à l’autre, le breakpoint ne matche plus.
+ */
 export const ORDERING_TOOLS: ClaudeToolDefinition[] = [
   GET_MENU_TOOL,
   ADD_TO_CART_TOOL,
