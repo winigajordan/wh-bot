@@ -19,7 +19,7 @@ Bot de commande automatisée pour restaurants via WhatsApp Business API. Le clie
 - **Cache/sessions** : Redis
 - **Dashboard frontend** : Angular
 - **Temps réel dashboard** : WebSocket (NestJS Gateway)
-- **IA conversationnelle** : Claude API (Anthropic), modèle `claude-sonnet-4-6`, function calling
+- **IA conversationnelle** : Claude API (Anthropic), modèle `claude-sonnet-5`, function calling
 - **Messagerie** : Meta WhatsApp Cloud API (webhook + Send API)
 
 ## 3. Architecture générale

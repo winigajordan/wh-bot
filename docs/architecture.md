@@ -70,7 +70,7 @@ Les tables `conversations` / `messages` existent mais **ne sont pas alimentées*
 | Runtime | NestJS 11 / TypeScript | `PORT` 3000, CORS vers Angular 4200 |
 | SQL | PostgreSQL + TypeORM | Migrations versionnées, pas de `synchronize` |
 | Cache / jobs | Redis + ioredis + BullMQ | Sessions, locks, queue `conversation` |
-| IA | Anthropic `claude-sonnet-4-6` | Tools loop + Vision menu |
+| IA | Anthropic `claude-sonnet-5` | Tools loop + Vision menu |
 | WhatsApp | Cloud API Graph v21.0 | HMAC `X-Hub-Signature-256`, `rawBody` |
 | Dashboard API | JWT Passport + Socket.IO | namespace `/dashboard` |
 | Front | `wini-food` (Angular 20) | Hors de ce repo backend |

@@ -16,7 +16,7 @@ function configGet(overrides: Record<string, unknown> = {}) {
       return 'test-key';
     }
     if (key === 'anthropic.model') {
-      return 'claude-sonnet-4-6';
+      return 'claude-sonnet-5';
     }
     if (key === 'anthropic.toolMaxIterations') {
       return 5;
@@ -65,7 +65,7 @@ describe('ClaudeService', () => {
 
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         system: 'Tu es un assistant.',
         messages: [{ role: 'user', content: 'Salut' }],
       }),

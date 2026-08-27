@@ -57,6 +57,203 @@ Seuil Sonnet (~1024 tokens) largement dépassé.
 
 ##########
 
+## Bot — phrases descriptives par famille (mode categories)
+
+Date : 25 août 2026, 16:15
+
+### Comportement
+
+- `get_menu` mode=`categories` renvoie `sample[{name, description}]` + `has_more` (plus un teaser liste à virgules)
+- Prompt : une **phrase descriptive** par famille (esprit du contenu), pas une liste de plats ; si `has_more`, laisser sentir qu’il y a d’autres choix
+- Interdit : « section », « catégorie », listes `tawouk, kafta…`
+
+### Fichiers
+
+- `src/restaurant-ordering/menu/menu.types.ts` — `MenuCategorySampleItem`, summary
+- `src/restaurant-ordering/menu/menu.service.ts` — `toCategorySummary`
+- `src/restaurant-ordering/tools/get-menu.tool.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+
+##########
+
+## Bot — vouvoiement systématique + ton serveur
+
+Date : 25 août 2026, 15:45
+
+### Comportement
+
+- Vouvoiement **obligatoire** à 100 % (même si le client tutoie)
+- Exemples contrastés dans le prompt ; ton chaleureux (pas administratif)
+- Interdit « en premier », formulations catalogue
+
+### Fichiers
+
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts` (+ spec)
+
+##########
+
+## Bot — navigation menu par catégories
+
+Date : 25 août 2026, 15:30
+
+### Comportement
+
+- Demande générique « menu » : `get_menu` sans `category` / sans `full`
+- Menu long (seuils env) → `mode=categories` (aperçu, pas toute la carte)
+- Avec `category` → `mode=items` ; `full: true` → carte complète (jamais le défaut)
+- Petit menu → `mode=full` d’emblée
+- Seuils : `MENU_CATEGORY_NAV_MIN_ITEMS` (défaut 10), `MENU_CATEGORY_NAV_MIN_CATEGORIES` (défaut 3)
+
+### Fichiers
+
+- `src/config/configuration.ts` — `menu.categoryNav*`
+- `.env.example` — variables documentées
+- `src/restaurant-ordering/menu/menu.service.ts` (+ types, specs)
+- `src/restaurant-ordering/tools/get-menu.tool.ts`
+- `src/restaurant-ordering/tools/restaurant-ordering-tools.service.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+
+### Non fait (volontaire)
+
+- Boutons WhatsApp list/buttons
+- Seuil par resto en DB
+
+##########
+
+## Fix conversation — messages pendant Claude + prefill
+
+Date : 25 août 2026, 15:15
+
+### Problème
+
+1. Message reçu pendant un job `active` : flag follow-up posé, puis `scheduleProcessing` dans le `finally` voyait encore le job `active` → **aucun job reprogrammé**
+2. Session `[A, B, assistant]` → Claude 400 « conversation must end with a user message »
+
+### Correctifs
+
+- `scheduleFollowUpProcessing` avec jobId distinct `…__fu`
+- Flag Redis `followup:conversation:…` + `hasUserMessagesSince` (snapshot début de traitement)
+- `appendAssistantMessage(..., insertAfterCount)` → `[A, assistant, B]`
+- `trimTrailingAssistantMessages` avant appel Claude
+
+### Fichiers
+
+- `src/conversation-queue/conversation-debounce.service.ts` (+ spec)
+- `src/conversation-queue/conversation.processor.ts` (+ spec)
+- `src/conversation-queue/conversation-queue.constants.ts`
+- `src/redis/redis.service.ts` — `markFlag` / `consumeFlag`
+- `src/conversation/conversation-session.service.ts`
+- `src/conversation/conversation-orchestrator.service.ts`
+- `src/conversation/session.types.ts` (+ specs)
+
+##########
+
+## Bot — présentation menu WhatsApp (`price_label`)
+
+Date : 25 août 2026, 14:40
+
+### Comportement
+
+- Chaque plat expose `price_label` formaté (ex. `Sandwich 2 500 F · Plat 7 500 F`)
+- Prompt : structure aérée (pas « - nom — prix » collé) ; espace insécable fr-FR normalisé
+
+### Fichiers
+
+- `src/restaurant-ordering/menu/menu.service.ts` — `formatItemPriceLabel` / `formatXof`
+- `src/restaurant-ordering/menu/menu.types.ts`
+- `src/restaurant-ordering/tools/get-menu.tool.ts`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+
+##########
+
+## Menu — variantes multi-prix (Sandwich/Plat, MM/GM…)
+
+Date : 25 août 2026, 14:00
+
+### Comportement
+
+- Options avec `choices[{name, price}]` = **supplément** vs prix de base
+- Vision extrait `variants[]` → normalisé en option Format + choices
+- Bot / `add_to_cart` : passer le nom de la variante ; dashboard + review éditables
+
+### Fichiers
+
+- `src/restaurant-ordering/menu/menu.types.ts` / `menu.service.ts` — `variantsToOption`, resolve options
+- `src/claude/claude.service.ts` — prompt Vision variants
+- `src/restaurant-ordering/menu/menu-extraction.service.ts`
+- Prompt bot + tools ordering
+- UI `wini-food` menu + review
+
+##########
+
+## Phase 5 — Review menu (upload Vision → review → publish)
+
+Date : 25 août 2026, ~03:00–12:00
+
+### Comportement
+
+- Upload **1–5 images** (JPEG/PNG/WebP/GIF, max 8 Mo) → Claude Vision → draft `menu_extractions`
+- Écran Angular `/menu/review/:id` : corriger catégories/plats/prix/options → publier
+- Publish défaut = **append** ; option **replace** disponible
+- Multer `memoryStorage()` requis pour avoir `buffer`
+- Jamais de publish sans review humaine
+
+### Fichiers backend
+
+- Migration `1787002900000-AddMenuExtractions.ts` — table `menu_extractions`
+- `src/restaurant-ordering/menu/menu-extraction.service.ts` (+ entity, types)
+- `src/dashboard-api/menu/dashboard-menu-extractions.controller.ts`
+- `src/claude/claude.service.ts` — `extractMenuFromImages`
+
+### Fichiers frontend (`wini-food/`)
+
+- `menu-review.component.*`
+- `menu-extraction.models.ts`
+- `menu-api.service.ts` — endpoints extractions
+- Modal import multi-images + preview sur l’écran Menu
+
+### Non fait (volontaire)
+
+- PDF multi-pages
+- OCR hors Claude Vision
+
+##########
+
+## Phase 5 — Écran Zones de livraison (CRUD)
+
+Date : 25 août 2026
+
+### Comportement
+
+- API `GET/POST/PATCH/DELETE /dashboard/zones`
+- UI Angular `/zones` : liste + création/édition/suppression (quartier + frais)
+
+### Fichiers
+
+- Backend dashboard zones controller/service
+- `wini-food/.../zones/*`
+
+##########
+
+## Phase 5 — Écran Menu CRUD + catégories
+
+Date : 25 août 2026
+
+### Comportement
+
+- API `GET/POST/PATCH /dashboard/menu` (+ availability)
+- Catégories `menu_categories` : `GET/POST/DELETE /dashboard/menu/categories`
+- UI grille menu : recherche, cartes (nom + prix visibles), options/variantes compactes
+- Fix bug prix zone / affichage cartes après gros import
+
+### Fichiers
+
+- `src/dashboard-api/menu/dashboard-menu.controller.ts`
+- `src/restaurant-ordering/menu/*` (CRUD dashboard)
+- `wini-food/.../menu/*`
+
+##########
+
 ## Phase 5 — WebSocket dashboard commandes
 
 Date : 25 août 2026, 02:20
@@ -446,11 +643,11 @@ Date : 22 août 2026, 12:02
 - `src/database/seeds/seed-test-menu.ts`
 - `package.json` — script `seed:menu`
 
-### Non fait (volontaire)
+### Non fait (volontaire) — à la date du bloc (22 août)
 
-- Upload Vision + review dashboard
-- Endpoints HTTP CRUD menu (dashboard Phase 5)
-- Tools panier (Phase 4)
+- ~~Upload Vision + review dashboard~~ → **fait** le 25 août (voir bloc « Phase 5 — Review menu »)
+- ~~Endpoints HTTP CRUD menu~~ → **fait** le 25 août (voir bloc « Phase 5 — Écran Menu CRUD »)
+- Tools panier → **fait** Phase 4
 
 ##########
 
@@ -693,7 +890,7 @@ Phase 2 update2 : client Anthropic réutilisable, sans aucun texte métier resto
 
 ### Comportement
 
-- Config : `anthropic.apiKey` (`ANTHROPIC_API_KEY`), `anthropic.model` (défaut `claude-sonnet-4-6`)
+- Config : `anthropic.apiKey` (`ANTHROPIC_API_KEY`), `anthropic.model` (défaut `claude-sonnet-5`)
 - `ClaudeService.generateReply(systemPrompt, messages, tools?)` → `messages.create`
 - `tools` omis si absent ou vide
 - Réponse = concaténation des blocs `type === 'text'`

@@ -4,7 +4,7 @@ Suivi de ce qui est fait et de ce qui reste. Photo de l’architecture : [etat-a
 
 Tout le code backend vit dans `whatsapp-bot/`. Frontend dashboard : `wini-food/` (Angular 20).
 
-Dernière mise à jour : 25 août 2026.
+Dernière mise à jour : 27 août 2026.
 
 ---
 
@@ -19,7 +19,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] Validation manuelle checklist complète
 - [ ] `WHATSAPP_ACCESS_TOKEN` System User niveau Business Portfolio (si multi-WABA)
 
-**Prochaine étape : Phase 5 — Dashboard.**
+**Prochaine étape : Phase 6 — notifs WhatsApp statut commande.**
 
 ---
 
@@ -59,7 +59,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 
 ### Phase 2 — Pipeline Claude (update2)
 
-- `ANTHROPIC_API_KEY` + `ClaudeService.generateReply` générique (`claude-sonnet-4-6`)
+- `ANTHROPIC_API_KEY` + `ClaudeService.generateReply` générique (`claude-sonnet-5`)
 - `restaurant-ordering` : prompt (ton serveur sympa, présentation assistant virtuel au 1er message)
 - `ModuleRegistryService.resolve`
 - Orchestrateur `conversation` (remplace l’ack fixe)
@@ -106,7 +106,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] Prompt resto : flow commande complet
 - [x] WebSocket dashboard à la confirmation
 
-### Phase 5 — Dashboard ← **en cours**
+### Phase 5 — Dashboard ← **cœur fait**
 
 - [x] Auth JWT (`POST /auth/login`, `GET /auth/me`, guard)
 - [x] Seed users liés aux businesses (`npm run seed:users`)
@@ -119,10 +119,12 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] Catégories menu (`menu_categories` + `GET/POST /dashboard/menu/categories` + UI grille)
 - [x] Écran zones de livraison (`GET/POST/PATCH/DELETE /dashboard/zones` + UI Angular)
 - [x] Écran review menu (upload image → Vision → review → publish)
+- [x] Variantes multi-prix + présentation WhatsApp (`price_label`) + nav catégories
+- [x] Fix follow-up messages pendant réponse Claude
 - [x] Prompt caching Anthropic (system + dernier tool, flag `ANTHROPIC_PROMPT_CACHE_ENABLED`) — voir [prompt-caching-implementation.md](./prompt-caching-implementation.md)
 - [ ] Plus tard : register / refresh token ; PDF multi-pages
 
-**Prochaine étape : polish dashboard / Phase 6 notifs WhatsApp.**
+**Prochaine étape : Phase 6 notifs WhatsApp statut / polish dashboard.**
 
 ---
 
@@ -134,7 +136,8 @@ Voir specs §13. Pas de 2e module métier (`salon`, banque, école) pour le POC 
 
 ## Ordre
 
-**0 → 1 → 2** : fait (Phase 2 considérée suffisante sans persist Postgres).  
+**0 → 1 → 2** : fait.  
 **3 et 4** : cœur fait. **Stabilisation bot** : validée.  
-**Persist messages** : avant Phase 5 ou pilote.  
-**5** : prochaine étape.
+**5** : cœur fait (menu upload/review inclus).  
+**Persist messages** : avant pilote restos réels.  
+**6** : prochaine étape (notifs WhatsApp statut).

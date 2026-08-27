@@ -35,7 +35,7 @@ export class ClaudeService {
       apiKey: this.config.get<string>('anthropic.apiKey') ?? '',
     });
     this.model =
-      this.config.get<string>('anthropic.model') ?? 'claude-sonnet-4-6';
+      this.config.get<string>('anthropic.model') ?? 'claude-sonnet-5';
   }
 
   getToolMaxIterations(): number {

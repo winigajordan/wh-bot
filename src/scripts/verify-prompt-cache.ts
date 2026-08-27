@@ -22,7 +22,7 @@ async function main(): Promise<void> {
     throw new Error('ANTHROPIC_API_KEY manquante');
   }
 
-  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
+  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
   const systemPrompt = [
     restaurantOrderingModuleDefinition.buildSystemPrompt({
       name: 'Les délices de Jordan',
