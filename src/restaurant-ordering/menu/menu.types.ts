@@ -42,8 +42,38 @@ export type MenuCategoryDto = {
   items: MenuItemDto[];
 };
 
-export type GetMenuResult = {
+/** Catégorie sans détail complet — navigation menu long */
+export type MenuCategorySampleItem = {
+  name: string;
+  description: string | null;
+};
+
+export type MenuCategorySummaryDto = {
+  name: string;
+  item_count: number;
+  /** Échantillon pour rédiger une phrase descriptive (pas à lister tel quel) */
+  sample: MenuCategorySampleItem[];
+  has_more: boolean;
+};
+
+export type GetMenuCategoriesResult = {
+  mode: 'categories';
+  total_items: number;
+  categories: MenuCategorySummaryDto[];
+  hint: string;
+};
+
+export type GetMenuItemsResult = {
+  mode: 'items' | 'full';
   categories: MenuCategoryDto[];
+};
+
+export type GetMenuResult = GetMenuCategoriesResult | GetMenuItemsResult;
+
+export type GetMenuOptions = {
+  category?: string;
+  /** true = carte complète même si le menu dépasse le seuil */
+  full?: boolean;
 };
 
 export type SelectedCartOption = {

@@ -93,6 +93,21 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.del(key);
   }
 
+  async markFlag(key: string, ttlSeconds: number): Promise<void> {
+    await this.client.set(key, '1', 'EX', ttlSeconds);
+  }
+
+  /** Lit et efface le flag. Retourne true s’il était présent. */
+  async consumeFlag(key: string): Promise<boolean> {
+    const result = await this.client
+      .multi()
+      .get(key)
+      .del(key)
+      .exec();
+    const value = result?.[0]?.[1];
+    return typeof value === 'string' && value.length > 0;
+  }
+
   private describeUrl(options: Redis['options']): string {
     const host = options.host ?? 'localhost';
     const port = options.port ?? 6379;

@@ -1,10 +1,12 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { isUuid } from '../../common/uuid.util';
 import { MenuCategory } from './entities/menu-category.entity';
 import { MenuItem } from './entities/menu-item.entity';
 import {
+  GetMenuOptions,
   GetMenuResult,
   MenuCategoryDto,
   MenuItemDto,
@@ -66,14 +68,80 @@ export class MenuService {
     private readonly menuItemRepo: Repository<MenuItem>,
     @InjectRepository(MenuCategory)
     private readonly menuCategoryRepo: Repository<MenuCategory>,
+    private readonly config: ConfigService,
   ) {}
 
   async getMenu(
     businessId: string,
-    category?: string,
+    options: GetMenuOptions | string = {},
   ): Promise<GetMenuResult> {
-    const items = await this.queryItems(businessId, category);
-    return { categories: this.groupByCategory(items) };
+    const normalized =
+      typeof options === 'string'
+        ? { category: options }
+        : (options ?? {});
+    const category = normalized.category?.trim() || undefined;
+    const full = normalized.full === true;
+
+    if (category) {
+      const items = await this.queryItems(businessId, category);
+      return {
+        mode: 'items',
+        categories: this.groupByCategory(items),
+      };
+    }
+
+    const items = await this.queryItems(businessId);
+    const grouped = this.groupByCategory(items);
+
+    if (!full && this.shouldUseCategoryNavigation(grouped, items.length)) {
+      return {
+        mode: 'categories',
+        total_items: items.length,
+        categories: grouped.map((entry) =>
+          this.toCategorySummary(entry.name, entry.items),
+        ),
+        hint: 'Pour chaque famille : UNE courte phrase descriptive du contenu, basée uniquement sur sample (noms + descriptions). Pas une liste de plats à virgules. Si has_more, laisse sentir qu’il y a d’autres choix. Vouvoiement. Pas de prix. N’utilise pas « catégorie » ni « section ». Demande ce qui intéresse. Puis get_menu avec category (nom exact). full:true seulement si carte complète demandée.',
+      };
+    }
+
+    return {
+      mode: 'full',
+      categories: grouped,
+    };
+  }
+
+  shouldUseCategoryNavigation(
+    categories: Array<{ name: string; items: unknown[] }>,
+    totalItems: number,
+  ): boolean {
+    const minItems =
+      this.config.get<number>('menu.categoryNavMinItems') ?? 10;
+    const minCategories =
+      this.config.get<number>('menu.categoryNavMinCategories') ?? 3;
+    return totalItems > minItems || categories.length > minCategories;
+  }
+
+  toCategorySummary(
+    name: string,
+    items: Array<{
+      name: string;
+      description: string | null;
+      available?: boolean;
+    }>,
+    sampleSize = 5,
+  ) {
+    const preferred = items.filter((item) => item.available !== false);
+    const source = preferred.length > 0 ? preferred : items;
+    const sample = source.slice(0, sampleSize).map((item) => ({
+      name: item.name,
+      description: item.description,
+    }));
+    return {
+      name,
+      item_count: items.length,
+      sample,
+      has_more: source.length > sample.length,
+    };
   }
 
   async listForBusiness(

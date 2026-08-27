@@ -4,13 +4,14 @@ import type { Job } from 'bullmq';
 import { BusinessesService } from '../businesses/businesses.service';
 import { ConversationOrchestratorService } from '../conversation/conversation-orchestrator.service';
 import { ConversationSessionService } from '../conversation/conversation-session.service';
-import { hasPendingUserMessages } from '../conversation/session.types';
+import { hasUserMessagesSince } from '../conversation/session.types';
 import { RedisService } from '../redis/redis.service';
 import { WhatsappClientService } from '../whatsapp-client/whatsapp-client.service';
 import { ConversationDebounceService } from './conversation-debounce.service';
 import type { ConversationJobPayload } from './conversation-job.types';
 import {
   CONVERSATION_QUEUE,
+  buildConversationFollowUpKey,
   buildConversationLockKey,
 } from './conversation-queue.constants';
 
@@ -34,6 +35,7 @@ export class ConversationProcessor extends WorkerHost {
   async process(job: Job<ConversationJobPayload>): Promise<void> {
     const { businessId, clientPhone, phoneNumberId } = job.data;
     const lockKey = buildConversationLockKey(businessId, clientPhone);
+    const followUpKey = buildConversationFollowUpKey(businessId, clientPhone);
 
     const acquired = await this.redisService.tryAcquireLock(
       lockKey,
@@ -43,6 +45,9 @@ export class ConversationProcessor extends WorkerHost {
       await this.debounceService.scheduleProcessing(job.data);
       return;
     }
+
+    let messageCountAtStart = 0;
+    let shouldCheckFollowUp = false;
 
     try {
       const business = await this.businessesService.findById(businessId);
@@ -62,6 +67,9 @@ export class ConversationProcessor extends WorkerHost {
         businessId,
         clientPhone,
       );
+      messageCountAtStart = session.messages.length;
+      shouldCheckFollowUp = true;
+
       if (session.last_whatsapp_message_id) {
         await this.whatsappClient.markAsReadWithTyping(
           phoneNumberId,
@@ -81,14 +89,6 @@ export class ConversationProcessor extends WorkerHost {
           reply,
         );
       }
-
-      const updatedSession = await this.sessionService.getSession(
-        businessId,
-        clientPhone,
-      );
-      if (hasPendingUserMessages(updatedSession.messages)) {
-        await this.debounceService.scheduleProcessing(job.data);
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(
@@ -97,6 +97,43 @@ export class ConversationProcessor extends WorkerHost {
       throw error;
     } finally {
       await this.redisService.releaseLock(lockKey);
+
+      if (shouldCheckFollowUp) {
+        try {
+          await this.scheduleFollowUpIfNeeded(
+            job.data,
+            followUpKey,
+            messageCountAtStart,
+          );
+        } catch (followUpError) {
+          const message =
+            followUpError instanceof Error
+              ? followUpError.message
+              : String(followUpError);
+          this.logger.error(
+            `Follow-up conversation échoué ${businessId}:${clientPhone} : ${message}`,
+          );
+        }
+      }
+    }
+  }
+
+  private async scheduleFollowUpIfNeeded(
+    payload: ConversationJobPayload,
+    followUpKey: string,
+    messageCountAtStart: number,
+  ): Promise<void> {
+    const followUpRequested = await this.redisService.consumeFlag(followUpKey);
+    const updatedSession = await this.sessionService.getSession(
+      payload.businessId,
+      payload.clientPhone,
+    );
+    if (
+      followUpRequested ||
+      hasUserMessagesSince(updatedSession.messages, messageCountAtStart)
+    ) {
+      // Pas scheduleProcessing : le job courant est encore `active`.
+      await this.debounceService.scheduleFollowUpProcessing(payload);
     }
   }
 }

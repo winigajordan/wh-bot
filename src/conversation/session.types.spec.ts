@@ -1,7 +1,9 @@
 import {
   CLAUDE_MESSAGE_WINDOW,
   hasPendingUserMessages,
+  hasUserMessagesSince,
   sliceMessagesForClaude,
+  trimTrailingAssistantMessages,
   SessionMessage,
 } from './session.types';
 
@@ -50,5 +52,56 @@ describe('hasPendingUserMessages', () => {
         { role: 'assistant', content: 'ok' },
       ]),
     ).toBe(false);
+  });
+});
+
+describe('hasUserMessagesSince', () => {
+  it('détecte un user arrivé pendant Claude (sous la réponse assistant)', () => {
+    expect(
+      hasUserMessagesSince(
+        [
+          { role: 'user', content: 'A' },
+          { role: 'user', content: 'B pendant' },
+          { role: 'assistant', content: 'réponse à A' },
+        ],
+        1,
+      ),
+    ).toBe(true);
+  });
+
+  it('retourne false si rien n’est arrivé après le snapshot', () => {
+    expect(
+      hasUserMessagesSince(
+        [
+          { role: 'user', content: 'A' },
+          { role: 'assistant', content: 'ok' },
+        ],
+        1,
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('trimTrailingAssistantMessages', () => {
+  it('enlève les assistants en fin de liste', () => {
+    expect(
+      trimTrailingAssistantMessages([
+        { role: 'user', content: 'A' },
+        { role: 'user', content: 'B' },
+        { role: 'assistant', content: 'ok' },
+      ]),
+    ).toEqual([
+      { role: 'user', content: 'A' },
+      { role: 'user', content: 'B' },
+    ]);
+  });
+
+  it('ne modifie pas une liste qui finit par user', () => {
+    const messages: SessionMessage[] = [
+      { role: 'user', content: 'A' },
+      { role: 'assistant', content: 'ok' },
+      { role: 'user', content: 'B' },
+    ];
+    expect(trimTrailingAssistantMessages(messages)).toBe(messages);
   });
 });

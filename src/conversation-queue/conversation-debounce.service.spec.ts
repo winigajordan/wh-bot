@@ -2,9 +2,11 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Queue } from 'bullmq';
+import { RedisService } from '../redis/redis.service';
 import type { ConversationJobPayload } from './conversation-job.types';
 import { ConversationDebounceService } from './conversation-debounce.service';
 import {
+  CONVERSATION_FOLLOW_UP_TTL_SECONDS,
   CONVERSATION_PROCESS_JOB,
   CONVERSATION_QUEUE,
 } from './conversation-queue.constants';
@@ -15,6 +17,7 @@ describe('ConversationDebounceService', () => {
   const getJob = jest.fn();
   const remove = jest.fn();
   const getState = jest.fn();
+  const markFlag = jest.fn();
 
   const payload: ConversationJobPayload = {
     businessId: 'biz-1',
@@ -27,8 +30,10 @@ describe('ConversationDebounceService', () => {
     getJob.mockReset();
     remove.mockReset();
     getState.mockReset();
+    markFlag.mockReset();
     add.mockResolvedValue(undefined);
     getJob.mockResolvedValue(null);
+    markFlag.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -46,6 +51,10 @@ describe('ConversationDebounceService', () => {
             get: (key: string) =>
               key === 'conversation.debounceDelayMs' ? 2500 : undefined,
           },
+        },
+        {
+          provide: RedisService,
+          useValue: { markFlag },
         },
       ],
     }).compile();
@@ -76,7 +85,7 @@ describe('ConversationDebounceService', () => {
     expect(add).toHaveBeenCalled();
   });
 
-  it('ne reprogramme pas un job actif', async () => {
+  it('marque un follow-up si un job est actif', async () => {
     getJob.mockResolvedValue({ getState, remove });
     getState.mockResolvedValue('active');
 
@@ -84,5 +93,24 @@ describe('ConversationDebounceService', () => {
 
     expect(remove).not.toHaveBeenCalled();
     expect(add).not.toHaveBeenCalled();
+    expect(markFlag).toHaveBeenCalledWith(
+      'followup:conversation:biz-1:221779876543',
+      CONVERSATION_FOLLOW_UP_TTL_SECONDS,
+    );
+  });
+
+  it('programme un job follow-up avec un jobId distinct', async () => {
+    getJob.mockResolvedValue(null);
+
+    await service.scheduleFollowUpProcessing(payload);
+
+    expect(add).toHaveBeenCalledWith(
+      CONVERSATION_PROCESS_JOB,
+      payload,
+      expect.objectContaining({
+        jobId: 'biz-1__221779876543__fu',
+        delay: 2500,
+      }),
+    );
   });
 });

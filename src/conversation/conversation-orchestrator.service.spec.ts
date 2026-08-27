@@ -97,6 +97,7 @@ describe('ConversationOrchestratorService', () => {
       'biz-1',
       '221779876543',
       'Bonjour, je vous écoute.',
+      1,
     );
   });
 
@@ -110,9 +111,10 @@ describe('ConversationOrchestratorService', () => {
     await service.processConversation(business, '221779876543');
 
     const sent = generateReply.mock.calls[0][1] as { content: string }[];
-    expect(sent).toHaveLength(20);
+    expect(sent).toHaveLength(19);
     expect(sent[0].content).toBe('m4');
-    expect(sent.at(-1)?.content).toBe('m23');
+    expect(sent.at(-1)?.content).toBe('m22');
+    expect(sent.at(-1)?.role).toBe('user');
   });
 
   it('processConversation ne ré-append pas le message utilisateur', async () => {

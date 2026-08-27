@@ -40,8 +40,33 @@ export class ConversationSessionService {
     businessId: string,
     clientPhone: string,
     content: string,
+    /** Insère la réponse juste après les N messages vus par Claude (garde les user arrivés pendant l’appel). */
+    insertAfterCount?: number,
   ): Promise<ConversationSession> {
-    return this.appendMessage(businessId, clientPhone, 'assistant', content);
+    const key = buildSessionKey(businessId, clientPhone);
+    const session = this.parseSession(await this.redis.getSession(key));
+
+    const message = { role: 'assistant' as const, content };
+    if (
+      typeof insertAfterCount === 'number' &&
+      Number.isFinite(insertAfterCount) &&
+      insertAfterCount >= 0 &&
+      insertAfterCount <= session.messages.length
+    ) {
+      session.messages.splice(insertAfterCount, 0, message);
+    } else {
+      session.messages.push(message);
+    }
+
+    session.last_activity = new Date().toISOString();
+
+    this.logger.log(
+      `Écriture session Redis clé=${key} ttl=${SESSION_TTL_SECONDS}s messages=${session.messages.length}`,
+    );
+    await this.redis.setSession(key, session, SESSION_TTL_SECONDS);
+    this.logger.log(`Écriture session Redis OK clé=${key}`);
+
+    return session;
   }
 
   async mutateSession(

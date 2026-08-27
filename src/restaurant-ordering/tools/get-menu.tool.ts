@@ -2,15 +2,20 @@ import { ClaudeToolDefinition } from '../../module-registry/module-definition';
 
 export const GET_MENU_TOOL: ClaudeToolDefinition = {
   name: 'get_menu',
-  description:
-    'Récupère le menu (plats, prix, disponibilité, options). Chaque plat a price_label (prix déjà formaté pour WhatsApp, avec variantes si besoin). Options : name, required, price, parfois choices[{name, price}]. Ne jamais inventer un plat, un prix ou une option.',
+    description:
+    'Consulte le menu. Sans category ni full : si la carte est longue, renvoie mode=categories (name, sample[{name,description}], has_more) — présente chaque famille par une phrase descriptive, pas une liste de plats. Avec category : mode=items. full=true : carte complète uniquement si le client le demande. Petit menu : mode=full d’emblée. Ne jamais inventer un plat, un prix ou une option.',
   input_schema: {
     type: 'object',
     properties: {
       category: {
         type: 'string',
         description:
-          'Catégorie optionnelle pour filtrer (ex. "Grillades", "Boissons").',
+          'Nom exact d’une catégorie (ex. "Grillades", "Boissons") pour en lister les plats.',
+      },
+      full: {
+        type: 'boolean',
+        description:
+          'true uniquement si le client demande explicitement la carte / le menu complet. Ignoré si category est fourni.',
       },
     },
   },

@@ -121,4 +121,35 @@ describe('ConversationSessionService', () => {
       SESSION_TTL_SECONDS,
     );
   });
+
+  it('insère la réponse assistant avant les messages user arrivés pendant Claude', async () => {
+    getSession.mockResolvedValue({
+      messages: [
+        { role: 'user', content: 'A' },
+        { role: 'user', content: 'B pendant' },
+      ],
+      cart: [],
+      delivery_info: null,
+      last_activity: '2026-01-01T00:00:00.000Z',
+    });
+
+    await service.appendAssistantMessage(
+      'biz-1',
+      '221779876543',
+      'Réponse à A',
+      1,
+    );
+
+    expect(setSession).toHaveBeenCalledWith(
+      'session:biz-1:221779876543',
+      expect.objectContaining({
+        messages: [
+          { role: 'user', content: 'A' },
+          { role: 'assistant', content: 'Réponse à A' },
+          { role: 'user', content: 'B pendant' },
+        ],
+      }),
+      SESSION_TTL_SECONDS,
+    );
+  });
 });

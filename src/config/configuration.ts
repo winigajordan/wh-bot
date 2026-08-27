@@ -33,6 +33,17 @@ export default () => ({
       10,
     ),
   },
+  menu: {
+    /** Au-delà : get_menu sans category renvoie la liste des catégories */
+    categoryNavMinItems: parseInt(
+      process.env.MENU_CATEGORY_NAV_MIN_ITEMS || '10',
+      10,
+    ),
+    categoryNavMinCategories: parseInt(
+      process.env.MENU_CATEGORY_NAV_MIN_CATEGORIES || '3',
+      10,
+    ),
+  },
   jwt: {
     secret: process.env.JWT_SECRET || 'dev-insecure-secret-change-me',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',

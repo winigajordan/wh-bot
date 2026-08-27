@@ -56,6 +56,20 @@ export function sliceMessagesForClaude(
   return sliced.slice(firstUserIndex);
 }
 
+/**
+ * L’API exige que le dernier message soit `user` (pas de prefill assistant).
+ * Enlève les assistants trailing (ex. session cassée [A, B, assistant]).
+ */
+export function trimTrailingAssistantMessages(
+  messages: SessionMessage[],
+): SessionMessage[] {
+  let end = messages.length;
+  while (end > 0 && messages[end - 1].role === 'assistant') {
+    end -= 1;
+  }
+  return end === messages.length ? messages : messages.slice(0, end);
+}
+
 /** Messages utilisateur reçus depuis la dernière réponse assistant (fin de session). */
 export function hasPendingUserMessages(messages: SessionMessage[]): boolean {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -67,6 +81,19 @@ export function hasPendingUserMessages(messages: SessionMessage[]): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Messages user apparus après le snapshot pris avant Claude.
+ * Couvre le cas [A, B, assistant] où B est arrivé pendant le traitement
+ * et n’est plus « pending » au sens de hasPendingUserMessages.
+ */
+export function hasUserMessagesSince(
+  messages: SessionMessage[],
+  processedCount: number,
+): boolean {
+  const from = Math.max(0, processedCount);
+  return messages.slice(from).some((message) => message.role === 'user');
 }
 
 export function createEmptySession(

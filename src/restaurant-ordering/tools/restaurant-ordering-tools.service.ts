@@ -61,7 +61,8 @@ export class RestaurantOrderingToolsService {
   ): Promise<unknown> {
     const category =
       typeof input.category === 'string' ? input.category : undefined;
-    return this.menuService.getMenu(businessId, category);
+    const full = input.full === true;
+    return this.menuService.getMenu(businessId, { category, full });
   }
 
   private async addToCart(

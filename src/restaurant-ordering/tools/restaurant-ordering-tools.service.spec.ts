@@ -51,7 +51,21 @@ describe('RestaurantOrderingToolsService', () => {
       service.execute('get_menu', { category: 'Plats' }, context),
     ).resolves.toEqual({ categories: [] });
 
-    expect(getMenu).toHaveBeenCalledWith('biz-1', 'Plats');
+    expect(getMenu).toHaveBeenCalledWith('biz-1', {
+      category: 'Plats',
+      full: false,
+    });
+  });
+
+  it('exécute get_menu avec full', async () => {
+    getMenu.mockResolvedValue({ mode: 'full', categories: [] });
+
+    await service.execute('get_menu', { full: true }, context);
+
+    expect(getMenu).toHaveBeenCalledWith('biz-1', {
+      category: undefined,
+      full: true,
+    });
   });
 
   it('exécute add_to_cart en batch via items', async () => {

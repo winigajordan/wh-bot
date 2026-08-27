@@ -16,3 +16,24 @@ export function buildConversationLockKey(
 ): string {
   return `lock:conversation:${businessId}:${clientPhone}`;
 }
+
+/** Flag Redis : un message est arrivé pendant qu’un job était déjà active. */
+export function buildConversationFollowUpKey(
+  businessId: string,
+  clientPhone: string,
+): string {
+  return `followup:conversation:${businessId}:${clientPhone}`;
+}
+
+/**
+ * JobId distinct du job principal — permet d’enfiler un follow-up
+ * pendant que le job courant est encore `active` (dans le finally).
+ */
+export function buildConversationFollowUpJobId(
+  businessId: string,
+  clientPhone: string,
+): string {
+  return `${buildConversationJobId(businessId, clientPhone)}__fu`;
+}
+
+export const CONVERSATION_FOLLOW_UP_TTL_SECONDS = 300;

@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { MenuCategory } from './entities/menu-category.entity';
@@ -17,6 +18,11 @@ describe('MenuService', () => {
     createdAt: value.createdAt ?? new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: value.updatedAt ?? new Date('2026-01-01T00:00:00.000Z'),
   }));
+  const configGet = jest.fn((key: string) => {
+    if (key === 'menu.categoryNavMinItems') return 10;
+    if (key === 'menu.categoryNavMinCategories') return 3;
+    return undefined;
+  });
 
   beforeEach(async () => {
     getMany.mockReset();
@@ -25,6 +31,12 @@ describe('MenuService', () => {
     categoryFind.mockReset();
     categoryCreate.mockClear();
     categorySave.mockClear();
+    configGet.mockClear();
+    configGet.mockImplementation((key: string) => {
+      if (key === 'menu.categoryNavMinItems') return 10;
+      if (key === 'menu.categoryNavMinCategories') return 3;
+      return undefined;
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -56,6 +68,10 @@ describe('MenuService', () => {
               getOne: categoryGetOne,
             }),
           },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: configGet },
         },
       ],
     }).compile();
@@ -95,6 +111,7 @@ describe('MenuService', () => {
     ]);
 
     await expect(service.getMenu('biz-1')).resolves.toEqual({
+      mode: 'full',
       categories: [
         {
           name: 'Plats',
@@ -121,6 +138,128 @@ describe('MenuService', () => {
         },
       ],
     });
+  });
+
+  it('sans category sur menu long : mode categories (sans items)', async () => {
+    getMany.mockResolvedValue(
+      Array.from({ length: 12 }, (_, i) => ({
+        id: String(i + 1),
+        category: i < 6 ? 'Grillades' : 'Sandwichs',
+        name: `Plat ${i + 1}`,
+        price: '1000.00',
+        description: null,
+        available: true,
+        options: [],
+      })),
+    );
+
+    await expect(service.getMenu('biz-1')).resolves.toEqual({
+      mode: 'categories',
+      total_items: 12,
+      categories: [
+        {
+          name: 'Grillades',
+          item_count: 6,
+          sample: [
+            { name: 'Plat 1', description: null },
+            { name: 'Plat 2', description: null },
+            { name: 'Plat 3', description: null },
+            { name: 'Plat 4', description: null },
+            { name: 'Plat 5', description: null },
+          ],
+          has_more: true,
+        },
+        {
+          name: 'Sandwichs',
+          item_count: 6,
+          sample: [
+            { name: 'Plat 7', description: null },
+            { name: 'Plat 8', description: null },
+            { name: 'Plat 9', description: null },
+            { name: 'Plat 10', description: null },
+            { name: 'Plat 11', description: null },
+          ],
+          has_more: true,
+        },
+      ],
+      hint: expect.stringContaining('get_menu'),
+    });
+  });
+
+  it('toCategorySummary construit un sample et has_more', () => {
+    expect(
+      service.toCategorySummary('Grillades', [
+        { name: 'Tawouk', description: 'ail, frite', available: true },
+        { name: 'Kafta', description: 'homos', available: true },
+        { name: 'Sojoh', description: null, available: true },
+        { name: 'Makanek', description: null, available: true },
+        { name: 'Brochette', description: null, available: true },
+        { name: 'Poulet', description: null, available: true },
+      ]),
+    ).toEqual({
+      name: 'Grillades',
+      item_count: 6,
+      sample: [
+        { name: 'Tawouk', description: 'ail, frite' },
+        { name: 'Kafta', description: 'homos' },
+        { name: 'Sojoh', description: null },
+        { name: 'Makanek', description: null },
+        { name: 'Brochette', description: null },
+      ],
+      has_more: true,
+    });
+  });
+
+  it('avec category : mode items filtré', async () => {
+    getMany.mockResolvedValue([
+      {
+        id: '1',
+        category: 'Grillades',
+        name: 'Tawouk',
+        price: '2500.00',
+        description: 'ail',
+        available: true,
+        options: [],
+      },
+    ]);
+
+    await expect(
+      service.getMenu('biz-1', { category: 'Grillades' }),
+    ).resolves.toEqual({
+      mode: 'items',
+      categories: [
+        {
+          name: 'Grillades',
+          items: [
+            expect.objectContaining({
+              id: '1',
+              name: 'Tawouk',
+              price_label: '2 500 F',
+            }),
+          ],
+        },
+      ],
+    });
+  });
+
+  it('full: true force la carte complète même si menu long', async () => {
+    getMany.mockResolvedValue(
+      Array.from({ length: 12 }, (_, i) => ({
+        id: String(i + 1),
+        category: 'Plats',
+        name: `Plat ${i + 1}`,
+        price: '1000.00',
+        description: null,
+        available: true,
+        options: [],
+      })),
+    );
+
+    const result = await service.getMenu('biz-1', { full: true });
+    expect(result.mode).toBe('full');
+    if (result.mode === 'full') {
+      expect(result.categories[0].items).toHaveLength(12);
+    }
   });
 
   it('formatItemPriceLabel inclut les variantes', () => {

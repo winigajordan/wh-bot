@@ -4,7 +4,10 @@ import { ClaudeService } from '../claude/claude.service';
 import { ModuleRegistryService } from '../module-registry/module-registry.service';
 import { ModuleToolRegistryService } from '../module-registry/module-tool-registry.service';
 import { ConversationSessionService } from './conversation-session.service';
-import { sliceMessagesForClaude } from './session.types';
+import {
+  sliceMessagesForClaude,
+  trimTrailingAssistantMessages,
+} from './session.types';
 
 @Injectable()
 export class ConversationOrchestratorService {
@@ -36,6 +39,7 @@ export class ConversationOrchestratorService {
 
   async processConversation(business: Business, from: string): Promise<string> {
     const session = await this.sessionService.getSession(business.id, from);
+    const processedMessageCount = session.messages.length;
 
     const moduleKey = business.module?.key;
     if (!moduleKey) {
@@ -47,7 +51,19 @@ export class ConversationOrchestratorService {
       moduleDefinition.buildSystemPrompt(business),
     );
     const tools = moduleDefinition.getTools();
-    const windowedMessages = sliceMessagesForClaude(session.messages);
+    const windowedMessages = trimTrailingAssistantMessages(
+      sliceMessagesForClaude(session.messages),
+    );
+
+    if (
+      windowedMessages.length === 0 ||
+      windowedMessages[windowedMessages.length - 1]?.role !== 'user'
+    ) {
+      this.logger.warn(
+        `Skip Claude — aucun message user à traiter (${business.id}:${from})`,
+      );
+      return '';
+    }
 
     this.logger.log(
       `Claude pour business ${business.name} (${business.id}) module=${moduleKey} messages=${windowedMessages.length}/${session.messages.length} tools=${tools.length}`,
@@ -67,7 +83,12 @@ export class ConversationOrchestratorService {
     );
 
     if (reply) {
-      await this.sessionService.appendAssistantMessage(business.id, from, reply);
+      await this.sessionService.appendAssistantMessage(
+        business.id,
+        from,
+        reply,
+        processedMessageCount,
+      );
     }
 
     return reply;

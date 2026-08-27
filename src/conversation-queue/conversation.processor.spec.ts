@@ -15,9 +15,12 @@ describe('ConversationProcessor', () => {
   const processConversation = jest.fn();
   const getSession = jest.fn();
   const sendTextMessage = jest.fn();
+  const markAsReadWithTyping = jest.fn();
   const scheduleProcessing = jest.fn();
+  const scheduleFollowUpProcessing = jest.fn();
   const tryAcquireLock = jest.fn();
   const releaseLock = jest.fn();
+  const consumeFlag = jest.fn();
 
   const payload: ConversationJobPayload = {
     businessId: 'biz-1',
@@ -32,56 +35,7 @@ describe('ConversationProcessor', () => {
     module: { key: 'restaurant_ordering' },
   } as Business;
 
-  beforeEach(async () => {
-    findById.mockReset();
-    processConversation.mockReset();
-    getSession.mockReset();
-    sendTextMessage.mockReset();
-    scheduleProcessing.mockReset();
-    tryAcquireLock.mockReset();
-    releaseLock.mockReset();
-
-    findById.mockResolvedValue(business);
-    processConversation.mockResolvedValue('Réponse bot');
-    getSession.mockResolvedValue({
-      messages: [{ role: 'assistant', content: 'Réponse bot' }],
-    });
-    tryAcquireLock.mockResolvedValue(true);
-    releaseLock.mockResolvedValue(undefined);
-    sendTextMessage.mockResolvedValue(undefined);
-    scheduleProcessing.mockResolvedValue(undefined);
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ConversationProcessor,
-        { provide: BusinessesService, useValue: { findById } },
-        {
-          provide: ConversationOrchestratorService,
-          useValue: { processConversation },
-        },
-        { provide: ConversationSessionService, useValue: { getSession } },
-        { provide: WhatsappClientService, useValue: { sendTextMessage, markAsReadWithTyping: jest.fn() } },
-        {
-          provide: ConversationDebounceService,
-          useValue: { scheduleProcessing },
-        },
-        {
-          provide: RedisService,
-          useValue: { tryAcquireLock, releaseLock },
-        },
-      ],
-    }).compile();
-
-    processor = module.get(ConversationProcessor);
-  });
-
-  it('appelle read + typing avant Claude', async () => {
-    const markAsReadWithTyping = jest.fn().mockResolvedValue(undefined);
-    getSession.mockResolvedValue({
-      messages: [{ role: 'user', content: 'Salut' }],
-      last_whatsapp_message_id: 'wamid.test',
-    });
-
+  async function createProcessor(): Promise<ConversationProcessor> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConversationProcessor,
@@ -97,17 +51,48 @@ describe('ConversationProcessor', () => {
         },
         {
           provide: ConversationDebounceService,
-          useValue: { scheduleProcessing },
+          useValue: { scheduleProcessing, scheduleFollowUpProcessing },
         },
         {
           provide: RedisService,
-          useValue: { tryAcquireLock, releaseLock },
+          useValue: { tryAcquireLock, releaseLock, consumeFlag },
         },
       ],
     }).compile();
 
-    processor = module.get(ConversationProcessor);
+    return module.get(ConversationProcessor);
+  }
 
+  beforeEach(async () => {
+    findById.mockReset();
+    processConversation.mockReset();
+    getSession.mockReset();
+    sendTextMessage.mockReset();
+    markAsReadWithTyping.mockReset();
+    scheduleProcessing.mockReset();
+    scheduleFollowUpProcessing.mockReset();
+    tryAcquireLock.mockReset();
+    releaseLock.mockReset();
+    consumeFlag.mockReset();
+
+    findById.mockResolvedValue(business);
+    processConversation.mockResolvedValue('Réponse bot');
+    getSession.mockResolvedValue({
+      messages: [{ role: 'user', content: 'Salut' }],
+      last_whatsapp_message_id: 'wamid.test',
+    });
+    tryAcquireLock.mockResolvedValue(true);
+    releaseLock.mockResolvedValue(undefined);
+    consumeFlag.mockResolvedValue(false);
+    sendTextMessage.mockResolvedValue(undefined);
+    markAsReadWithTyping.mockResolvedValue(undefined);
+    scheduleProcessing.mockResolvedValue(undefined);
+    scheduleFollowUpProcessing.mockResolvedValue(undefined);
+
+    processor = await createProcessor();
+  });
+
+  it('appelle read + typing avant Claude', async () => {
     await processor.process({ data: payload } as never);
 
     expect(markAsReadWithTyping).toHaveBeenCalledWith(
@@ -118,34 +103,6 @@ describe('ConversationProcessor', () => {
   });
 
   it('traite la conversation et envoie la réponse WhatsApp', async () => {
-    const markAsReadWithTyping = jest.fn().mockResolvedValue(undefined);
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ConversationProcessor,
-        { provide: BusinessesService, useValue: { findById } },
-        {
-          provide: ConversationOrchestratorService,
-          useValue: { processConversation },
-        },
-        { provide: ConversationSessionService, useValue: { getSession } },
-        {
-          provide: WhatsappClientService,
-          useValue: { sendTextMessage, markAsReadWithTyping },
-        },
-        {
-          provide: ConversationDebounceService,
-          useValue: { scheduleProcessing },
-        },
-        {
-          provide: RedisService,
-          useValue: { tryAcquireLock, releaseLock },
-        },
-      ],
-    }).compile();
-
-    processor = module.get(ConversationProcessor);
-
     await processor.process({ data: payload } as never);
 
     expect(processConversation).toHaveBeenCalledWith(business, '221779876543');
@@ -157,17 +114,44 @@ describe('ConversationProcessor', () => {
     expect(releaseLock).toHaveBeenCalled();
   });
 
-  it('reprogramme si des messages utilisateur arrivent pendant le traitement', async () => {
-    getSession.mockResolvedValue({
-      messages: [
-        { role: 'assistant', content: 'ancienne' },
-        { role: 'user', content: 'nouveau pendant traitement' },
-      ],
-    });
+  it('reprogramme si un message user arrive pendant Claude (sous la réponse)', async () => {
+    getSession
+      .mockResolvedValueOnce({
+        messages: [{ role: 'user', content: 'A' }],
+        last_whatsapp_message_id: 'wamid.a',
+      })
+      .mockResolvedValueOnce({
+        messages: [
+          { role: 'user', content: 'A' },
+          { role: 'user', content: 'B pendant' },
+          { role: 'assistant', content: 'réponse à A' },
+        ],
+      });
 
     await processor.process({ data: payload } as never);
 
-    expect(scheduleProcessing).toHaveBeenCalledWith(payload);
+    expect(scheduleFollowUpProcessing).toHaveBeenCalledWith(payload);
+    expect(scheduleProcessing).not.toHaveBeenCalled();
+  });
+
+  it('reprogramme si le flag follow-up est posé pendant le traitement', async () => {
+    consumeFlag.mockResolvedValue(true);
+    getSession
+      .mockResolvedValueOnce({
+        messages: [{ role: 'user', content: 'A' }],
+        last_whatsapp_message_id: 'wamid.a',
+      })
+      .mockResolvedValueOnce({
+        messages: [
+          { role: 'user', content: 'A' },
+          { role: 'assistant', content: 'ok' },
+        ],
+      });
+
+    await processor.process({ data: payload } as never);
+
+    expect(scheduleFollowUpProcessing).toHaveBeenCalledWith(payload);
+    expect(scheduleProcessing).not.toHaveBeenCalled();
   });
 
   it('reprogramme si le verrou est déjà pris', async () => {

@@ -32,6 +32,24 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(prompt).toMatch(/required:\s*true/i);
     expect(prompt).toMatch(/Présentation du menu/i);
     expect(prompt).toMatch(/price_label/i);
+    expect(prompt).toMatch(/mode=categories/i);
+    expect(prompt).toMatch(/full:\s*true/i);
+    expect(prompt).toMatch(/Vouvoiement OBLIGATOIRE/i);
+    expect(prompt).toMatch(/tu veux voir quoi en premier/i);
+    expect(prompt).toMatch(/vous voulez voir les grillades ou les sandwichs/i);
+    expect(prompt).toMatch(/phrase descriptive/i);
+    expect(prompt).toMatch(/Exemple MAUVAIS \(liste\)/i);
+  });
+
+  it('donne un exemple descriptif et interdit la liste de noms', () => {
+    const prompt =
+      restaurantOrderingModuleDefinition.buildSystemPrompt(business);
+    expect(prompt).toContain(
+      'Grillades — viandes et volailles au feu de bois, brochettes et accompagnements, et bien d’autres',
+    );
+    expect(prompt).toContain(
+      'Grillades — tawouk, kafta, brochettes et d’autres',
+    );
   });
 
   it('expose tous les tools de commande', () => {
