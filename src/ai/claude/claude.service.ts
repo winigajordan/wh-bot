@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
-import { ClaudeToolDefinition } from '../module-registry/module-definition';
-
-export type ClaudeChatMessage = {
-  role: 'user' | 'assistant';
-  content: string;
-};
+import type {
+  AiGenerateReplyParams,
+  AiMessage,
+  AiService,
+  AiToolDefinition,
+} from '../ai.service.interface';
 
 type AnthropicMessageParam = Anthropic.MessageParam;
 
@@ -19,13 +19,13 @@ const TOOL_LOOP_NO_CONFIRM_GUARD =
 const TOOL_LOOP_CONFIRMED_HINT = (orderNumber: string) =>
   `Important : la commande EST bien confirmée (numéro ${orderNumber}). Mentionne ce numéro clairement au client.`;
 
-export type ToolExecutor = (
+type ToolExecutor = (
   name: string,
   input: Record<string, unknown>,
 ) => Promise<unknown>;
 
 @Injectable()
-export class ClaudeService {
+export class ClaudeService implements AiService {
   private readonly logger = new Logger(ClaudeService.name);
   private readonly client: Anthropic;
   private readonly model: string;
@@ -50,12 +50,12 @@ export class ClaudeService {
     return 8;
   }
 
-  async generateReply(
-    systemPrompt: string,
-    messages: ClaudeChatMessage[],
-    tools?: ClaudeToolDefinition[],
-    executeTool?: ToolExecutor,
-  ): Promise<string> {
+  async generateReply(params: AiGenerateReplyParams): Promise<string> {
+    const { systemPrompt, messages, tools, executor } = params;
+    const executeTool: ToolExecutor | undefined = executor
+      ? (name, input) => executor.execute(name, input)
+      : undefined;
+
     if (tools?.length && executeTool) {
       return this.generateReplyWithToolLoop(
         systemPrompt,
@@ -71,8 +71,8 @@ export class ClaudeService {
 
   private async generateReplyWithToolLoop(
     systemPrompt: string,
-    messages: ClaudeChatMessage[],
-    tools: ClaudeToolDefinition[],
+    messages: AiMessage[],
+    tools: AiToolDefinition[],
     executeTool: ToolExecutor,
     maxIterations: number,
   ): Promise<string> {
@@ -148,8 +148,8 @@ export class ClaudeService {
 
   private async generateReplyOnce(
     systemPrompt: string,
-    messages: ClaudeChatMessage[],
-    tools?: ClaudeToolDefinition[],
+    messages: AiMessage[],
+    tools?: AiToolDefinition[],
   ): Promise<string> {
     const response = await this.createMessage(
       systemPrompt,
@@ -338,7 +338,7 @@ export class ClaudeService {
     }
   }
 
-  private toAnthropicTools(tools: ClaudeToolDefinition[]): Anthropic.Tool[] {
+  private toAnthropicTools(tools: AiToolDefinition[]): Anthropic.Tool[] {
     return tools.map((tool) => ({
       name: tool.name,
       description: tool.description,

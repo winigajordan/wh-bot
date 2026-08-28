@@ -1,6 +1,7 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { AI_PROVIDER } from '../ai/ai.constants';
 import { Business } from '../businesses/entities/business.entity';
-import { ClaudeService } from '../claude/claude.service';
 import { ModuleRegistryService } from '../module-registry/module-registry.service';
 import { ModuleToolRegistryService } from '../module-registry/module-tool-registry.service';
 import { ORDERING_TOOLS } from '../restaurant-ordering/tools/ordering.tools';
@@ -14,7 +15,6 @@ describe('ConversationOrchestratorService', () => {
   const appendAssistantMessage = jest.fn();
   const resolve = jest.fn();
   const generateReply = jest.fn();
-  const getToolMaxIterations = jest.fn();
   const buildSystemPrompt = jest.fn();
   const getTools = jest.fn();
   const executeTool = jest.fn();
@@ -33,7 +33,6 @@ describe('ConversationOrchestratorService', () => {
     appendAssistantMessage.mockReset();
     resolve.mockReset();
     generateReply.mockReset();
-    getToolMaxIterations.mockReset();
     buildSystemPrompt.mockReset();
     getTools.mockReset();
     executeTool.mockReset();
@@ -46,7 +45,6 @@ describe('ConversationOrchestratorService', () => {
     getTools.mockReturnValue(ORDERING_TOOLS);
     resolve.mockReturnValue({ buildSystemPrompt, getTools });
     generateReply.mockResolvedValue('Bonjour, je vous écoute.');
-    getToolMaxIterations.mockReturnValue(5);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -65,8 +63,15 @@ describe('ConversationOrchestratorService', () => {
           useValue: { execute: executeTool },
         },
         {
-          provide: ClaudeService,
-          useValue: { generateReply, getToolMaxIterations },
+          provide: ConfigService,
+          useValue: {
+            get: (key: string) =>
+              key === 'anthropic.toolMaxIterations' ? 5 : undefined,
+          },
+        },
+        {
+          provide: AI_PROVIDER,
+          useValue: { generateReply },
         },
       ],
     }).compile();
@@ -74,7 +79,7 @@ describe('ConversationOrchestratorService', () => {
     service = module.get(ConversationOrchestratorService);
   });
 
-  it('enchaîne session → registre → Claude → append assistant', async () => {
+  it('enchaîne session → registre → IA → append assistant', async () => {
     await expect(
       service.handleIncomingMessage(business, '221779876543', 'Salut'),
     ).resolves.toBe('Bonjour, je vous écoute.');
@@ -86,13 +91,15 @@ describe('ConversationOrchestratorService', () => {
     );
     expect(resolve).toHaveBeenCalledWith('restaurant_ordering');
     expect(buildSystemPrompt).toHaveBeenCalledWith(business);
-    expect(generateReply).toHaveBeenCalledWith(
-      expect.stringContaining('au maximum 5 tours'),
-      [{ role: 'user', content: 'Salut' }],
-      ORDERING_TOOLS,
-      expect.any(Function),
+    expect(generateReply).toHaveBeenCalledWith({
+      systemPrompt: expect.stringContaining('au maximum 5 tours'),
+      messages: [{ role: 'user', content: 'Salut' }],
+      tools: ORDERING_TOOLS,
+      executor: expect.objectContaining({ execute: expect.any(Function) }),
+    });
+    expect(generateReply.mock.calls[0][0].systemPrompt).toContain(
+      'prompt resto',
     );
-    expect(generateReply.mock.calls[0][0]).toContain('prompt resto');
     expect(appendAssistantMessage).toHaveBeenCalledWith(
       'biz-1',
       '221779876543',
@@ -101,7 +108,7 @@ describe('ConversationOrchestratorService', () => {
     );
   });
 
-  it('n’envoie à Claude que la fenêtre glissante', async () => {
+  it('n’envoie à l’IA que la fenêtre glissante', async () => {
     const messages = Array.from({ length: 24 }, (_, i) => ({
       role: i % 2 === 0 ? 'user' : 'assistant',
       content: `m${i}`,
@@ -110,7 +117,10 @@ describe('ConversationOrchestratorService', () => {
 
     await service.processConversation(business, '221779876543');
 
-    const sent = generateReply.mock.calls[0][1] as { content: string }[];
+    const sent = generateReply.mock.calls[0][0].messages as {
+      content: string;
+      role: string;
+    }[];
     expect(sent).toHaveLength(19);
     expect(sent[0].content).toBe('m4');
     expect(sent.at(-1)?.content).toBe('m22');

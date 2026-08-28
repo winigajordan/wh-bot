@@ -122,6 +122,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 - [x] Variantes multi-prix + présentation WhatsApp (`price_label`) + nav catégories
 - [x] Fix follow-up messages pendant réponse Claude
 - [x] Prompt caching Anthropic (system + dernier tool, flag `ANTHROPIC_PROMPT_CACHE_ENABLED`) — voir [prompt-caching-implementation.md](./prompt-caching-implementation.md)
+- [x] Abstraction `AiService` + `AI_PROVIDER` (Claude sous `src/ai/`, GPT placeholder) — voir [refactor-ai-service-abstraction.md](./refactor-ai-service-abstraction.md)
 - [ ] Plus tard : register / refresh token ; PDF multi-pages
 
 **Prochaine étape : Phase 6 notifs WhatsApp statut / polish dashboard.**

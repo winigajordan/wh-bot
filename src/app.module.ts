@@ -3,8 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AiModule } from './ai/ai.module';
 import { BusinessesModule } from './businesses/businesses.module';
-import { ClaudeModule } from './claude/claude.module';
 import configuration from './config/configuration';
 import { ConversationModule } from './conversation/conversation.module';
 import { ConversationQueueModule } from './conversation-queue/conversation-queue.module';
@@ -32,7 +32,7 @@ import { WhatsappClientModule } from './whatsapp-client/whatsapp-client.module';
     ConversationModule,
     ConversationQueueModule,
     WebhookModule,
-    ClaudeModule,
+    AiModule,
     WhatsappClientModule,
     DashboardApiModule,
   ],

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ClaudeService } from '../../claude/claude.service';
+import { ClaudeService } from '../../ai/claude/claude.service';
 import { isUuid } from '../../common/uuid.util';
 import { MenuExtraction } from './entities/menu-extraction.entity';
 import type {

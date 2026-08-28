@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ClaudeModule } from '../../claude/claude.module';
+import { ClaudeModule } from '../../ai/claude/claude.module';
 import { MenuCategory } from './entities/menu-category.entity';
 import { MenuExtraction } from './entities/menu-extraction.entity';
 import { MenuItem } from './entities/menu-item.entity';
@@ -16,3 +16,4 @@ import { MenuService } from './menu.service';
   exports: [TypeOrmModule, MenuService, MenuExtractionService],
 })
 export class MenuModule {}
+

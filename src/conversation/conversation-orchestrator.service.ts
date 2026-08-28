@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { AI_PROVIDER } from '../ai/ai.constants';
+import type { AiService } from '../ai/ai.service.interface';
 import { Business } from '../businesses/entities/business.entity';
-import { ClaudeService } from '../claude/claude.service';
 import { ModuleRegistryService } from '../module-registry/module-registry.service';
 import { ModuleToolRegistryService } from '../module-registry/module-tool-registry.service';
 import { ConversationSessionService } from './conversation-session.service';
@@ -17,11 +19,24 @@ export class ConversationOrchestratorService {
     private readonly sessionService: ConversationSessionService,
     private readonly moduleRegistry: ModuleRegistryService,
     private readonly moduleToolRegistry: ModuleToolRegistryService,
-    private readonly claudeService: ClaudeService,
+    private readonly config: ConfigService,
+    @Inject(AI_PROVIDER) private readonly ai: AiService,
   ) {}
 
+  private getToolMaxIterations(): number {
+    const configured = this.config.get<number>('anthropic.toolMaxIterations');
+    if (
+      typeof configured === 'number' &&
+      Number.isInteger(configured) &&
+      configured >= 1
+    ) {
+      return configured;
+    }
+    return 8;
+  }
+
   private buildSystemPromptWithToolBudget(basePrompt: string): string {
-    const maxIterations = this.claudeService.getToolMaxIterations();
+    const maxIterations = this.getToolMaxIterations();
     return [
       basePrompt,
       `Contrainte outils : au maximum ${maxIterations} tours d’appel d’outils pour produire ta réponse. Si tu n’as plus assez de tours, réponds au client avec les infos déjà obtenues — ne laisse jamais le client sans réponse.`,
@@ -60,27 +75,29 @@ export class ConversationOrchestratorService {
       windowedMessages[windowedMessages.length - 1]?.role !== 'user'
     ) {
       this.logger.warn(
-        `Skip Claude — aucun message user à traiter (${business.id}:${from})`,
+        `Skip IA — aucun message user à traiter (${business.id}:${from})`,
       );
       return '';
     }
 
     this.logger.log(
-      `Claude pour business ${business.name} (${business.id}) module=${moduleKey} messages=${windowedMessages.length}/${session.messages.length} tools=${tools.length}`,
+      `IA pour business ${business.name} (${business.id}) module=${moduleKey} messages=${windowedMessages.length}/${session.messages.length} tools=${tools.length}`,
     );
 
-    const reply = await this.claudeService.generateReply(
+    const reply = await this.ai.generateReply({
       systemPrompt,
-      windowedMessages,
+      messages: windowedMessages,
       tools,
-      tools.length
-        ? (name, input) =>
-            this.moduleToolRegistry.execute(moduleKey, name, input, {
-              businessId: business.id,
-              clientPhone: from,
-            })
+      executor: tools.length
+        ? {
+            execute: (name, input) =>
+              this.moduleToolRegistry.execute(moduleKey, name, input, {
+                businessId: business.id,
+                clientPhone: from,
+              }),
+          }
         : undefined,
-    );
+    });
 
     if (reply) {
       await this.sessionService.appendAssistantMessage(

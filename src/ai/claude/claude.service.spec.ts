@@ -58,9 +58,10 @@ describe('ClaudeService', () => {
     });
 
     await expect(
-      service.generateReply('Tu es un assistant.', [
-        { role: 'user', content: 'Salut' },
-      ]),
+      service.generateReply({
+        systemPrompt: 'Tu es un assistant.',
+        messages: [{ role: 'user', content: 'Salut' }],
+      }),
     ).resolves.toBe('Bonjour, je vous écoute.');
 
     expect(create).toHaveBeenCalledWith(
@@ -88,7 +89,11 @@ describe('ClaudeService', () => {
       },
     ];
 
-    await service.generateReply('prompt', [], tools);
+    await service.generateReply({
+      systemPrompt: 'prompt',
+      messages: [],
+      tools,
+    });
 
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ tools }));
   });
@@ -116,18 +121,18 @@ describe('ClaudeService', () => {
     const executeTool = jest.fn().mockResolvedValue({ categories: [] });
 
     await expect(
-      service.generateReply(
-        'prompt',
-        [{ role: 'user', content: 'Le menu ?' }],
-        [
+      service.generateReply({
+        systemPrompt: 'prompt',
+        messages: [{ role: 'user', content: 'Le menu ?' }],
+        tools: [
           {
             name: 'get_menu',
             description: 'Menu',
             input_schema: { type: 'object', properties: {} },
           },
         ],
-        executeTool,
-      ),
+        executor: { execute: executeTool },
+      }),
     ).resolves.toBe('Voici nos plats.');
 
     expect(executeTool).toHaveBeenCalledWith('get_menu', {
@@ -185,12 +190,12 @@ describe('ClaudeService', () => {
     ];
 
     await expect(
-      limitedService.generateReply(
-        'prompt',
-        [{ role: 'user', content: 'Je commande' }],
+      limitedService.generateReply({
+        systemPrompt: 'prompt',
+        messages: [{ role: 'user', content: 'Je commande' }],
         tools,
-        executeTool,
-      ),
+        executor: { execute: executeTool },
+      }),
     ).resolves.toBe('Voici ce que j’ai pour l’instant, on continue ?');
 
     expect(create).toHaveBeenCalledTimes(2);
@@ -248,18 +253,18 @@ describe('ClaudeService', () => {
     });
 
     await expect(
-      limitedService.generateReply(
-        'prompt',
-        [{ role: 'user', content: 'Oui confirme' }],
-        [
+      limitedService.generateReply({
+        systemPrompt: 'prompt',
+        messages: [{ role: 'user', content: 'Oui confirme' }],
+        tools: [
           {
             name: 'confirm_order',
             description: 'Confirm',
             input_schema: { type: 'object', properties: {} },
           },
         ],
-        executeTool,
-      ),
+        executor: { execute: executeTool },
+      }),
     ).resolves.toBe('Commande CMD-0009 confirmée.');
 
     expect(create.mock.calls[1][0].messages.at(-1).content).toContain(
@@ -314,7 +319,11 @@ describe('ClaudeService', () => {
         },
       });
 
-      await cached.generateReply('prompt long', [], twoTools);
+      await cached.generateReply({
+        systemPrompt: 'prompt long',
+        messages: [],
+        tools: twoTools,
+      });
 
       expect(create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -345,7 +354,11 @@ describe('ClaudeService', () => {
         usage: { input_tokens: 10, output_tokens: 5 },
       });
 
-      await uncached.generateReply('prompt', [], twoTools);
+      await uncached.generateReply({
+        systemPrompt: 'prompt',
+        messages: [],
+        tools: twoTools,
+      });
 
       expect(create).toHaveBeenCalledWith(
         expect.objectContaining({

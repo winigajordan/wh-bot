@@ -29,6 +29,10 @@ export default () => ({
     /** false explicite pour désactiver ; true par défaut */
     promptCacheEnabled: process.env.ANTHROPIC_PROMPT_CACHE_ENABLED !== 'false',
   },
+  ai: {
+    /** claude | openai (openai = placeholder pour l’instant) */
+    provider: process.env.AI_PROVIDER || 'claude',
+  },
   conversation: {
     debounceDelayMs: parseInt(
       process.env.CONVERSATION_DEBOUNCE_DELAY_MS || '2500',

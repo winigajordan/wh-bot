@@ -9,6 +9,34 @@ Format d’un bloc :
 
 ##########
 
+## Refactor — AiService + AI_PROVIDER (Claude / GPT)
+
+Date : 28 août 2026, 00:20
+
+### Comportement
+
+- Interface neutre `AiService` (`generateReply({ systemPrompt, messages, tools?, executor? })`)
+- Token Nest **`AI_PROVIDER`** : factory lit `ai.provider` (`AI_PROVIDER` dans `.env`) → `ClaudeService` ou `GptService`
+- Valeurs : `claude` (défaut), `openai` / `gpt` ; inconnu → fallback Claude + warning
+- `GptService` : retourne `Model gpt en cours d'implementation` (pas d’appel OpenAI)
+- Claude déplacé sous `src/ai/claude/` ; Vision menu reste Claude-only (injection directe)
+- Orchestrateur injecte `@Inject(AI_PROVIDER)` au lieu de `ClaudeService`
+
+### Fichiers
+
+- `src/ai/ai.service.interface.ts`, `ai.constants.ts`, `ai.provider.ts`, `ai.module.ts`
+- `src/ai/claude/*`, `src/ai/gpt/*`
+- `src/conversation/conversation-orchestrator.service.ts` (+ spec)
+- `src/config/configuration.ts`, `.env.example`, `.env`
+- Suppression de `src/claude/`
+
+### Non fait (volontaire)
+
+- Implémentation réelle OpenAI / SDK
+- Vision via AI_PROVIDER
+
+##########
+
 ## Prompt caching Anthropic (system + tools)
 
 Date : 27 août 2026, 00:55
