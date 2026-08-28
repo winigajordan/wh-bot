@@ -1,10 +1,12 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AI_PROVIDER } from '../ai/ai.constants';
+import { resolveAiProviderKey } from '../ai/ai.provider';
 import type { AiService } from '../ai/ai.service.interface';
 import { Business } from '../businesses/entities/business.entity';
 import { ModuleRegistryService } from '../module-registry/module-registry.service';
 import { ModuleToolRegistryService } from '../module-registry/module-tool-registry.service';
+import { sanitizeWhatsappText } from './sanitize-whatsapp-text';
 import { ConversationSessionService } from './conversation-session.service';
 import {
   sliceMessagesForClaude,
@@ -62,8 +64,9 @@ export class ConversationOrchestratorService {
     }
 
     const moduleDefinition = this.moduleRegistry.resolve(moduleKey);
+    const aiProvider = resolveAiProviderKey(this.config);
     const systemPrompt = this.buildSystemPromptWithToolBudget(
-      moduleDefinition.buildSystemPrompt(business),
+      moduleDefinition.buildSystemPrompt(business, aiProvider),
     );
     const tools = moduleDefinition.getTools();
     const windowedMessages = trimTrailingAssistantMessages(
@@ -84,7 +87,7 @@ export class ConversationOrchestratorService {
       `IA pour business ${business.name} (${business.id}) module=${moduleKey} messages=${windowedMessages.length}/${session.messages.length} tools=${tools.length}`,
     );
 
-    const reply = await this.ai.generateReply({
+    const rawReply = await this.ai.generateReply({
       systemPrompt,
       messages: windowedMessages,
       tools,
@@ -98,6 +101,8 @@ export class ConversationOrchestratorService {
           }
         : undefined,
     });
+
+    const reply = rawReply ? sanitizeWhatsappText(rawReply) : rawReply;
 
     if (reply) {
       await this.sessionService.appendAssistantMessage(

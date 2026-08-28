@@ -1,4 +1,8 @@
-import { restaurantOrderingModuleDefinition } from './restaurant-ordering.module-definition';
+import {
+  buildRestaurantOrderingSystemPrompt,
+  DEFAULT_STYLE_DIRECTIVES,
+  restaurantOrderingModuleDefinition,
+} from './restaurant-ordering.module-definition';
 import { ORDERING_TOOLS } from './tools/ordering.tools';
 
 describe('restaurantOrderingModuleDefinition', () => {
@@ -79,5 +83,30 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(restaurantOrderingModuleDefinition.getTools()).toEqual(
       restaurantOrderingModuleDefinition.getTools(),
     );
+  });
+
+  it('sans provider ou avec claude : prompt identique au style Claude par défaut', () => {
+    const withoutProvider =
+      restaurantOrderingModuleDefinition.buildSystemPrompt(business);
+    const withClaude = buildRestaurantOrderingSystemPrompt(business, 'claude');
+
+    expect(withoutProvider).toBe(withClaude);
+    expect(withoutProvider).toContain(DEFAULT_STYLE_DIRECTIVES);
+    expect(withoutProvider).toContain('Titre de catégorie en MAJUSCULES');
+    expect(withoutProvider).not.toContain('INTERDIT : tout caractère #');
+  });
+
+  it('avec openai : injecte le style override GPT (fluidité + texte brut)', () => {
+    const prompt = buildRestaurantOrderingSystemPrompt(business, 'openai');
+
+    expect(prompt).toContain('conversation fluide');
+    expect(prompt).toContain('INTERDIT ABSOLU : tout caractère *');
+    expect(prompt).toContain('Fluidité et non-répétition');
+    expect(prompt).toContain('C’est noté pour la César');
+    expect(prompt).toContain('PAS de puces • devant chaque plat');
+    expect(prompt).not.toContain('Titre de catégorie en MAJUSCULES');
+    expect(prompt).not.toContain('*Total : 9 500 F*');
+    expect(prompt).toContain('Ne jamais inventer un plat');
+    expect(prompt).toContain('confirm_order');
   });
 });

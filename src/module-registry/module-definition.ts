@@ -1,3 +1,5 @@
+import type { AiProvider } from '../ai/ai.constants';
+
 export interface OnboardingStepDefinition {
   key: string;
   label: string;
@@ -18,7 +20,10 @@ export type BusinessPromptContext = {
 
 export interface ModuleDefinition {
   key: string;
-  buildSystemPrompt(business: BusinessPromptContext): string;
+  buildSystemPrompt(
+    business: BusinessPromptContext,
+    provider?: AiProvider,
+  ): string;
   getTools(): ClaudeToolDefinition[];
   onboardingSteps: OnboardingStepDefinition[];
 }

@@ -9,6 +9,111 @@ Format d’un bloc :
 
 ##########
 
+## Fix GPT — astérisques visibles + fluidité v2
+
+Date : 28 août 2026, 02:35
+
+### Contexte
+
+CMD-0016 : astérisques WhatsApp affichés en clair (`*Grillades*`, `*Total : 7 500 F*`), menu en catalogue à puces, ton « a été ajoutée à votre panier » malgré le 1er recalibrage fluidité.
+
+### Comportement
+
+- `STYLE_OVERRIDES.openai` réécrit :
+  - **Interdiction totale des `*`** (texte brut uniquement) — les exemples few-shot ne contiennent plus d’astérisques (le 1er recalibrage en montrait encore dans le « mauvais » exemple, GPT les copiait)
+  - Catégories en phrases enchaînées, pas `• Catégorie : …`
+  - Plats : `Nom — price_label` sur lignes simples, sans puces ni listes d’ingrédients exhaustives
+  - Confirmations courtes (« C’est noté pour la César »), récap complet uniquement avant validation finale
+  - Zones livraison en phrase fluide, pas liste à puces
+  - Accueil moins robot (« bienvenue — qu’est-ce qui vous ferait plaisir ? »)
+- `sanitizeWhatsappText()` étendu : retire `*gras*`, `_italique_`, `~barré~` avant envoi (filet de sécurité provider-agnostique)
+
+### Fichiers
+
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts` — `OPENAI_STYLE_DIRECTIVES`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.spec.ts`
+- `src/conversation/sanitize-whatsapp-text.ts` (+ spec)
+
+### Non fait (volontaire)
+
+- Modification Claude / règles métier
+- Suppression des puces `•` au sanitizer (autorisées si le modèle en met)
+
+### Validation
+
+- `npm test` — 138 tests verts
+- `npm run build` — OK
+- Retest manuel flow menu → panier → livraison → confirmation avec `AI_PROVIDER=openai`
+
+##########
+
+## Recalibrage STYLE_OVERRIDES.openai — fluidité conversationnelle
+
+Date : 28 août 2026, 02:17
+
+### Comportement
+
+- Réécriture `STYLE_OVERRIDES.openai` (CMD-0015) : principe liste/prose au jugement du modèle, non-répétition des infos déjà connues, réaction au message client, gras limité, pas d’emoji statut
+- Exemple few-shot Médina (mauvaise vs bonne réponse)
+- Puces réautorisées (retrait de l’interdiction v1)
+- `sanitizeWhatsappText()` : emoji ✅/❌/🎉 après « confirmé(e) »
+
+### Fichiers
+
+- `docs/recalibrage-style-gpt-fluidite.md` — spec
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts`
+- `src/conversation/sanitize-whatsapp-text.ts` (+ spec)
+
+### Non fait (volontaire)
+
+- `DEFAULT_STYLE_DIRECTIVES` / règles métier inchangés
+- Tests A/B automatisés du style
+
+### Validation
+
+- Tests module-definition + sanitizer verts
+- Supersédé partiellement par le fix astérisques v2 (02:35)
+
+##########
+
+## Prompt modulaire — style overridable par provider (GPT naturel)
+
+Date : 28 août 2026, 01:50
+
+### Comportement
+
+- `buildSystemPrompt` découpé en blocs : identité, règles métier (source unique, jamais overridable), style, footer
+- `DEFAULT_STYLE_DIRECTIVES` = style Claude actuel, mot pour mot (non-régression `AI_PROVIDER=claude`)
+- `STYLE_OVERRIDES.openai` : consignes GPT plus strictes (anti `#` / puces / gras systématique / reçu de caisse) + ton **conversation humaine** (serveur qui tape sur WhatsApp, phrases courtes, réaction au client)
+- Présentation menu GPT en prose (« Pour les grillades, on a… ») — pas de titres Markdown ni en-têtes MAJUSCULES isolés
+- Type `AiProvider` (`claude` | `openai`) dans `ai.constants.ts`
+- `resolveAiProviderKey()` — orchestrateur passe le provider à `buildSystemPrompt(business, provider)`
+- `sanitizeWhatsappText()` — filet de sécurité provider-agnostique : supprime `#`… en début de ligne avant envoi WhatsApp
+
+### Fichiers
+
+- `docs/prompt-style-override-par-provider.md` — spec
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts` — blocs + `DEFAULT_STYLE_DIRECTIVES` + `STYLE_OVERRIDES`
+- `src/restaurant-ordering/restaurant-ordering.module-definition.spec.ts` — claude identique / openai override injecté
+- `src/module-registry/module-definition.ts` — `buildSystemPrompt(business, provider?)`
+- `src/ai/ai.constants.ts`, `src/ai/ai.provider.ts` (+ spec `resolveAiProviderKey`)
+- `src/conversation/conversation-orchestrator.service.ts` (+ spec) — provider + sanitization
+- `src/conversation/sanitize-whatsapp-text.ts` (+ spec)
+
+### Non fait (volontaire)
+
+- Override style pour d’autres providers (Mistral, Gemini)
+- Tests A/B automatisés du style
+- Modification des règles métier partagées
+
+### Validation
+
+- `npm test` — 136 tests verts
+- `npm run build` — OK
+- Test WhatsApp manuel `AI_PROVIDER=openai` : comparer visuellement avec cas CMD-0014 (plus de `###`, ton plus naturel)
+
+##########
+
 ## GptService — OpenAI Responses API (gpt-5.6-terra)
 
 Date : 28 août 2026, 01:25
@@ -42,7 +147,7 @@ Date : 28 août 2026, 01:25
 - Streaming
 - Vision menu via GPT (reste Claude-only)
 - Fallback automatique Claude↔GPT en runtime
-- Tuning prompt spécifique GPT
+- ~~Tuning prompt spécifique GPT~~ → style override openai (bloc du 28 août 01:50)
 
 ### Validation
 

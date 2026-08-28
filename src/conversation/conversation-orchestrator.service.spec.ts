@@ -65,8 +65,15 @@ describe('ConversationOrchestratorService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: (key: string) =>
-              key === 'anthropic.toolMaxIterations' ? 5 : undefined,
+            get: (key: string) => {
+              if (key === 'anthropic.toolMaxIterations') {
+                return 5;
+              }
+              if (key === 'ai.provider') {
+                return 'openai';
+              }
+              return undefined;
+            },
           },
         },
         {
@@ -90,7 +97,7 @@ describe('ConversationOrchestratorService', () => {
       'Salut',
     );
     expect(resolve).toHaveBeenCalledWith('restaurant_ordering');
-    expect(buildSystemPrompt).toHaveBeenCalledWith(business);
+    expect(buildSystemPrompt).toHaveBeenCalledWith(business, 'openai');
     expect(generateReply).toHaveBeenCalledWith({
       systemPrompt: expect.stringContaining('au maximum 5 tours'),
       messages: [{ role: 'user', content: 'Salut' }],
