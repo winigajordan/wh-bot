@@ -29,8 +29,12 @@ export default () => ({
     /** false explicite pour désactiver ; true par défaut */
     promptCacheEnabled: process.env.ANTHROPIC_PROMPT_CACHE_ENABLED !== 'false',
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+    model: process.env.OPENAI_MODEL || 'gpt-5.6-terra',
+  },
   ai: {
-    /** claude | openai (openai = placeholder pour l’instant) */
+    /** claude | openai */
     provider: process.env.AI_PROVIDER || 'claude',
   },
   conversation: {

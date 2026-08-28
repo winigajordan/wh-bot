@@ -9,6 +9,49 @@ Format d’un bloc :
 
 ##########
 
+## GptService — OpenAI Responses API (gpt-5.6-terra)
+
+Date : 28 août 2026, 01:25
+
+### Comportement
+
+- `GptService` remplace le squelette placeholder : appels réels via SDK `openai` et **Responses API**
+- Modèle par défaut : `gpt-5.6-terra` (`OPENAI_MODEL`)
+- `AI_PROVIDER=openai` → conversations WhatsApp passent par GPT ; `claude` inchangé (non-régression)
+- Conversion interne `AiToolDefinition` → `{ type: 'function', name, description, parameters, strict: false }`
+- Boucle tool calling :
+  - 1er appel : `responses.create({ model, instructions, input, tools })`
+  - `function_call` → exécution executor → `function_call_output` avec `previous_response_id`
+  - Parallèle : tous les `function_call` d’un tour exécutés avant le prochain appel
+  - Limite : réutilise `CLAUDE_TOOL_MAX_ITERATIONS` ; fallback sans tools + garde-fous `confirm_order` (identique Claude)
+- Logs DEBUG : `GPT usage in=X out=Y cached=Z` (`input_tokens_details.cached_tokens`)
+- Clé absente → throw `OPENAI_API_KEY manquante`
+
+### Fichiers
+
+- `docs/implementation-gpt-service.md` — spec
+- `src/ai/gpt/gpt.service.ts` — implémentation complète
+- `src/ai/gpt/gpt.service.spec.ts` — 6 tests (simple, tools, boucle, parallèle, limite, clé)
+- `src/config/configuration.ts` — bloc `openai: { apiKey, model }`
+- `.env.example` — `OPENAI_API_KEY`, `OPENAI_MODEL`
+- `package.json` — dépendance `openai`
+
+### Non fait (volontaire)
+
+- `strict: true` sur les tools
+- Streaming
+- Vision menu via GPT (reste Claude-only)
+- Fallback automatique Claude↔GPT en runtime
+- Tuning prompt spécifique GPT
+
+### Validation
+
+- `npm test` — 128 tests verts (dont Claude + orchestrateur)
+- `npm run build` — OK
+- Test WhatsApp manuel avec `AI_PROVIDER=openai` + clé valide : à faire (flow menu → panier → livraison → confirmation)
+
+##########
+
 ## Refactor — AiService + AI_PROVIDER (Claude / GPT)
 
 Date : 28 août 2026, 00:20
@@ -18,7 +61,7 @@ Date : 28 août 2026, 00:20
 - Interface neutre `AiService` (`generateReply({ systemPrompt, messages, tools?, executor? })`)
 - Token Nest **`AI_PROVIDER`** : factory lit `ai.provider` (`AI_PROVIDER` dans `.env`) → `ClaudeService` ou `GptService`
 - Valeurs : `claude` (défaut), `openai` / `gpt` ; inconnu → fallback Claude + warning
-- `GptService` : retourne `Model gpt en cours d'implementation` (pas d’appel OpenAI)
+- `GptService` : squelette placeholder à l’origine (remplacé par implémentation OpenAI — voir bloc du 28 août 01:25)
 - Claude déplacé sous `src/ai/claude/` ; Vision menu reste Claude-only (injection directe)
 - Orchestrateur injecte `@Inject(AI_PROVIDER)` au lieu de `ClaudeService`
 
@@ -32,7 +75,7 @@ Date : 28 août 2026, 00:20
 
 ### Non fait (volontaire)
 
-- Implémentation réelle OpenAI / SDK
+- ~~Implémentation réelle OpenAI / SDK~~ → fait (bloc GptService 28 août 01:25)
 - Vision via AI_PROVIDER
 
 ##########
