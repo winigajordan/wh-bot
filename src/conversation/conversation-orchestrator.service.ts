@@ -6,6 +6,11 @@ import type { AiService } from '../ai/ai.service.interface';
 import { Business } from '../businesses/entities/business.entity';
 import { ModuleRegistryService } from '../module-registry/module-registry.service';
 import { ModuleToolRegistryService } from '../module-registry/module-tool-registry.service';
+import type { ConversationProcessResult } from '../whatsapp-client/interactive-message.types';
+import {
+  formatInteractiveSessionContent,
+  toOutboundMessage,
+} from '../whatsapp-client/interactive-message.types';
 import { sanitizeWhatsappText } from './sanitize-whatsapp-text';
 import { ConversationSessionService } from './conversation-session.service';
 import {
@@ -49,12 +54,15 @@ export class ConversationOrchestratorService {
     business: Business,
     from: string,
     text: string,
-  ): Promise<string> {
+  ): Promise<ConversationProcessResult> {
     await this.sessionService.appendUserMessage(business.id, from, text);
     return this.processConversation(business, from);
   }
 
-  async processConversation(business: Business, from: string): Promise<string> {
+  async processConversation(
+    business: Business,
+    from: string,
+  ): Promise<ConversationProcessResult> {
     const session = await this.sessionService.getSession(business.id, from);
     const processedMessageCount = session.messages.length;
 
@@ -80,12 +88,14 @@ export class ConversationOrchestratorService {
       this.logger.warn(
         `Skip IA — aucun message user à traiter (${business.id}:${from})`,
       );
-      return '';
+      return { outbound: null };
     }
 
     this.logger.log(
       `IA pour business ${business.name} (${business.id}) module=${moduleKey} messages=${windowedMessages.length}/${session.messages.length} tools=${tools.length}`,
     );
+
+    this.moduleToolRegistry.resetTurn(moduleKey);
 
     const rawReply = await this.ai.generateReply({
       systemPrompt,
@@ -102,6 +112,21 @@ export class ConversationOrchestratorService {
         : undefined,
     });
 
+    const pendingInteractive =
+      this.moduleToolRegistry.consumePendingInteractiveMessage(moduleKey);
+
+    if (pendingInteractive) {
+      const sessionContent = formatInteractiveSessionContent(pendingInteractive);
+      await this.sessionService.appendAssistantMessage(
+        business.id,
+        from,
+        sessionContent,
+        processedMessageCount,
+      );
+
+      return { outbound: toOutboundMessage(pendingInteractive) };
+    }
+
     const reply = rawReply ? sanitizeWhatsappText(rawReply) : rawReply;
 
     if (reply) {
@@ -113,6 +138,6 @@ export class ConversationOrchestratorService {
       );
     }
 
-    return reply;
+    return reply ? { outbound: { type: 'text', body: reply } } : { outbound: null };
   }
 }

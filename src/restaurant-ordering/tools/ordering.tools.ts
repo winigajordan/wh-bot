@@ -1,5 +1,9 @@
 import { ClaudeToolDefinition } from '../../module-registry/module-definition';
 import { GET_MENU_TOOL } from './get-menu.tool';
+import {
+  ASK_DELIVERY_MODE_TOOL,
+  ASK_ORDER_CONFIRMATION_TOOL,
+} from './ask-interactive.tools';
 
 export const ADD_TO_CART_TOOL: ClaudeToolDefinition = {
   name: 'add_to_cart',
@@ -73,7 +77,7 @@ export const GET_CART_SUMMARY_TOOL: ClaudeToolDefinition = {
 export const GET_DELIVERY_ZONES_TOOL: ClaudeToolDefinition = {
   name: 'get_delivery_zones',
   description:
-    'Liste les quartiers livrables avec leurs frais de livraison (delivery_fee).',
+    'Liste les quartiers livrables avec leurs frais (delivery_fee). Envoie un menu déroulant WhatsApp pour choisir la zone. Après le choix de zone, demander au client un complément d’adresse (rue, repère…) avant set_delivery_info.',
   input_schema: {
     type: 'object',
     properties: {},
@@ -83,14 +87,15 @@ export const GET_DELIVERY_ZONES_TOOL: ClaudeToolDefinition = {
 export const SET_DELIVERY_INFO_TOOL: ClaudeToolDefinition = {
   name: 'set_delivery_info',
   description:
-    'Enregistre le mode livraison ou retrait. address_text requis si mode=delivery.',
+    'Enregistre le mode livraison ou retrait. En livraison : address_text obligatoire avec quartier + complément précis (pas le quartier seul). Ex. « Point E, à côté d’Auchan 1 ».',
   input_schema: {
     type: 'object',
     properties: {
       mode: { type: 'string', enum: ['delivery', 'pickup'] },
       address_text: {
         type: 'string',
-        description: 'Adresse ou quartier du client (requis en livraison)',
+        description:
+          'Adresse complète en livraison : quartier + complément (rue, repère, numéro). Ne pas envoyer le quartier seul.',
       },
     },
     required: ['mode'],
@@ -167,7 +172,7 @@ export const GET_ORDER_STATUS_TOOL: ClaudeToolDefinition = {
 
 /**
  * Ordre FIGÉ — ne pas trier / filtrer / réordonner à l’exécution.
- * Le prompt caching pose cache_control sur le DERNIER tool (get_order_status).
+ * Le prompt caching pose cache_control sur le DERNIER tool (ask_order_confirmation).
  * Si l’ordre change d’un appel à l’autre, le breakpoint ne matche plus.
  */
 export const ORDERING_TOOLS: ClaudeToolDefinition[] = [
@@ -181,4 +186,6 @@ export const ORDERING_TOOLS: ClaudeToolDefinition[] = [
   SET_ORDER_NOTE_TOOL,
   CONFIRM_ORDER_TOOL,
   GET_ORDER_STATUS_TOOL,
+  ASK_DELIVERY_MODE_TOOL,
+  ASK_ORDER_CONFIRMATION_TOOL,
 ];

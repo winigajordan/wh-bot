@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConversationSessionService } from '../../conversation/conversation-session.service';
 import { CartService } from '../cart/cart.service';
 import { DeliveryZonesService } from '../delivery-zones/delivery-zones.service';
 import { MenuService } from '../menu/menu.service';
@@ -9,39 +10,58 @@ describe('RestaurantOrderingToolsService', () => {
   let service: RestaurantOrderingToolsService;
   const getMenu = jest.fn();
   const addToCart = jest.fn();
+  const getCartSummary = jest.fn();
+  const getSession = jest.fn();
   const getZoneNames = jest.fn();
   const listZones = jest.fn();
   const matchZone = jest.fn();
   const setDeliveryInfo = jest.fn();
   const clearCart = jest.fn();
   const confirmOrder = jest.fn();
+  const formatXof = jest.fn((amount: number) => `${amount} F`);
 
   const context = { businessId: 'biz-1', clientPhone: '22177' };
 
   beforeEach(async () => {
     getMenu.mockReset();
     addToCart.mockReset();
+    getCartSummary.mockReset();
+    getSession.mockReset();
     getZoneNames.mockReset();
     listZones.mockReset();
     matchZone.mockReset();
     setDeliveryInfo.mockReset();
     clearCart.mockReset();
     confirmOrder.mockReset();
+    formatXof.mockImplementation((amount: number) => `${amount} F`);
+    service = null as unknown as RestaurantOrderingToolsService;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RestaurantOrderingToolsService,
-        { provide: MenuService, useValue: { getMenu } },
-        { provide: CartService, useValue: { addToCart, addItemsToCart: addToCart, setDeliveryInfo, clearCart, removeItemsFromCart: jest.fn() } },
+        { provide: MenuService, useValue: { getMenu, formatXof } },
+        {
+          provide: CartService,
+          useValue: {
+            addToCart,
+            addItemsToCart: addToCart,
+            setDeliveryInfo,
+            clearCart,
+            removeItemsFromCart: jest.fn(),
+            getCartSummary,
+          },
+        },
         {
           provide: DeliveryZonesService,
           useValue: { getZoneNames, listZones, matchZone },
         },
         { provide: OrdersService, useValue: { confirmOrder } },
+        { provide: ConversationSessionService, useValue: { getSession } },
       ],
     }).compile();
 
     service = module.get(RestaurantOrderingToolsService);
+    service.resetTurn();
   });
 
   it('exécute get_menu', async () => {
@@ -141,6 +161,85 @@ describe('RestaurantOrderingToolsService', () => {
     });
 
     expect(clearCart).toHaveBeenCalledWith('biz-1', '22177');
+  });
+
+  it('ask_delivery_mode stocke un payload boutons', async () => {
+    await expect(service.execute('ask_delivery_mode', {}, context)).resolves.toEqual(
+      { presented: true },
+    );
+
+    expect(service.consumePendingInteractiveMessage()).toEqual({
+      type: 'buttons',
+      bodyText: 'Souhaitez-vous une livraison ou un retrait sur place ?',
+      buttons: [
+        { id: 'delivery_mode_delivery', title: 'Livraison' },
+        { id: 'delivery_mode_pickup', title: 'Retrait sur place' },
+      ],
+    });
+  });
+
+  it('get_delivery_zones retourne les zones et stocke une liste', async () => {
+    listZones.mockResolvedValue([
+      { name: 'Fass', delivery_fee: 1200 },
+      { name: 'Médina', delivery_fee: 1500 },
+    ]);
+
+    await expect(service.execute('get_delivery_zones', {}, context)).resolves.toEqual({
+      zones: [
+        { name: 'Fass', delivery_fee: 1200 },
+        { name: 'Médina', delivery_fee: 1500 },
+      ],
+    });
+
+    expect(service.consumePendingInteractiveMessage()).toEqual(
+      expect.objectContaining({
+        type: 'list',
+        bodyText: 'Choisissez votre quartier — vous pourrez préciser l’adresse juste après :',
+        rows: [
+          expect.objectContaining({ title: 'Fass', description: 'Frais : 1200 F' }),
+          expect.objectContaining({ title: 'Médina', description: 'Frais : 1500 F' }),
+        ],
+      }),
+    );
+  });
+
+  it('ask_order_confirmation stocke un payload boutons avec récap', async () => {
+    getCartSummary.mockResolvedValue({
+      items: [{ name: 'Salade César', price: 5500, quantity: 1, options: [] }],
+      subtotal: 5500,
+      delivery_fee: 2000,
+      total: 7500,
+      item_count: 1,
+      order_note: null,
+    });
+    getSession.mockResolvedValue({
+      delivery_info: {
+        mode: 'delivery',
+        zone_name: 'Point E',
+        address_text: 'Point E, à côté d’Auchan',
+      },
+    });
+
+    await expect(
+      service.execute('ask_order_confirmation', {}, context),
+    ).resolves.toEqual({ presented: true });
+
+    const payload = service.consumePendingInteractiveMessage();
+    expect(payload).toEqual(
+      expect.objectContaining({
+        type: 'buttons',
+        buttons: [
+          { id: 'confirm_order_yes', title: 'Oui, je confirme' },
+          { id: 'confirm_order_no', title: 'Non, je modifie' },
+        ],
+      }),
+    );
+    expect(payload?.type === 'buttons' ? payload.bodyText : '').toContain(
+      'Salade César',
+    );
+    expect(payload?.type === 'buttons' ? payload.bodyText : '').toContain(
+      'Total : 7500 F',
+    );
   });
 
   it('rejette un tool inconnu', async () => {

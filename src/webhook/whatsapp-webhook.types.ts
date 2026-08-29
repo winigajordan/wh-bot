@@ -30,6 +30,18 @@ export type WhatsAppWebhookMessage = {
   text?: {
     body?: string;
   };
+  interactive?: {
+    type?: string;
+    button_reply?: {
+      id?: string;
+      title?: string;
+    };
+    list_reply?: {
+      id?: string;
+      title?: string;
+      description?: string;
+    };
+  };
 };
 
 export type ParsedIncomingTextMessage = {

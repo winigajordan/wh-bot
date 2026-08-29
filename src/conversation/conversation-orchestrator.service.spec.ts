@@ -18,6 +18,8 @@ describe('ConversationOrchestratorService', () => {
   const buildSystemPrompt = jest.fn();
   const getTools = jest.fn();
   const executeTool = jest.fn();
+  const resetTurn = jest.fn();
+  const consumePendingInteractiveMessage = jest.fn();
 
   const business = {
     id: 'biz-1',
@@ -36,6 +38,8 @@ describe('ConversationOrchestratorService', () => {
     buildSystemPrompt.mockReset();
     getTools.mockReset();
     executeTool.mockReset();
+    resetTurn.mockReset();
+    consumePendingInteractiveMessage.mockReset();
 
     appendUserMessage.mockResolvedValue(undefined);
     getSession.mockResolvedValue({
@@ -45,6 +49,8 @@ describe('ConversationOrchestratorService', () => {
     getTools.mockReturnValue(ORDERING_TOOLS);
     resolve.mockReturnValue({ buildSystemPrompt, getTools });
     generateReply.mockResolvedValue('Bonjour, je vous écoute.');
+    resetTurn.mockReturnValue(undefined);
+    consumePendingInteractiveMessage.mockReturnValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -60,7 +66,11 @@ describe('ConversationOrchestratorService', () => {
         { provide: ModuleRegistryService, useValue: { resolve } },
         {
           provide: ModuleToolRegistryService,
-          useValue: { execute: executeTool },
+          useValue: {
+            execute: executeTool,
+            resetTurn,
+            consumePendingInteractiveMessage,
+          },
         },
         {
           provide: ConfigService,
@@ -89,13 +99,16 @@ describe('ConversationOrchestratorService', () => {
   it('enchaîne session → registre → IA → append assistant', async () => {
     await expect(
       service.handleIncomingMessage(business, '221779876543', 'Salut'),
-    ).resolves.toBe('Bonjour, je vous écoute.');
+    ).resolves.toEqual({
+      outbound: { type: 'text', body: 'Bonjour, je vous écoute.' },
+    });
 
     expect(appendUserMessage).toHaveBeenCalledWith(
       'biz-1',
       '221779876543',
       'Salut',
     );
+    expect(resetTurn).toHaveBeenCalledWith('restaurant_ordering');
     expect(resolve).toHaveBeenCalledWith('restaurant_ordering');
     expect(buildSystemPrompt).toHaveBeenCalledWith(business, 'openai');
     expect(generateReply).toHaveBeenCalledWith({
@@ -104,13 +117,44 @@ describe('ConversationOrchestratorService', () => {
       tools: ORDERING_TOOLS,
       executor: expect.objectContaining({ execute: expect.any(Function) }),
     });
-    expect(generateReply.mock.calls[0][0].systemPrompt).toContain(
-      'prompt resto',
+    expect(consumePendingInteractiveMessage).toHaveBeenCalledWith(
+      'restaurant_ordering',
     );
     expect(appendAssistantMessage).toHaveBeenCalledWith(
       'biz-1',
       '221779876543',
       'Bonjour, je vous écoute.',
+      1,
+    );
+  });
+
+  it('retourne un message interactif si un payload est en attente', async () => {
+    consumePendingInteractiveMessage.mockReturnValue({
+      type: 'buttons',
+      bodyText: 'Souhaitez-vous une livraison ou un retrait sur place ?',
+      buttons: [
+        { id: 'delivery_mode_delivery', title: 'Livraison' },
+        { id: 'delivery_mode_pickup', title: 'Retrait sur place' },
+      ],
+    });
+
+    await expect(
+      service.processConversation(business, '221779876543'),
+    ).resolves.toEqual({
+      outbound: {
+        type: 'buttons',
+        bodyText: 'Souhaitez-vous une livraison ou un retrait sur place ?',
+        buttons: [
+          { id: 'delivery_mode_delivery', title: 'Livraison' },
+          { id: 'delivery_mode_pickup', title: 'Retrait sur place' },
+        ],
+      },
+    });
+
+    expect(appendAssistantMessage).toHaveBeenCalledWith(
+      'biz-1',
+      '221779876543',
+      'Souhaitez-vous une livraison ou un retrait sur place ? (Livraison, Retrait sur place)',
       1,
     );
   });
