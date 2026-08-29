@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -76,9 +80,7 @@ export class MenuService {
     options: GetMenuOptions | string = {},
   ): Promise<GetMenuResult> {
     const normalized =
-      typeof options === 'string'
-        ? { category: options }
-        : (options ?? {});
+      typeof options === 'string' ? { category: options } : (options ?? {});
     const category = normalized.category?.trim() || undefined;
     const full = normalized.full === true;
 
@@ -114,8 +116,7 @@ export class MenuService {
     categories: Array<{ name: string; items: unknown[] }>,
     totalItems: number,
   ): boolean {
-    const minItems =
-      this.config.get<number>('menu.categoryNavMinItems') ?? 10;
+    const minItems = this.config.get<number>('menu.categoryNavMinItems') ?? 10;
     const minCategories =
       this.config.get<number>('menu.categoryNavMinCategories') ?? 3;
     return totalItems > minItems || categories.length > minCategories;
@@ -309,10 +310,7 @@ export class MenuService {
     return result.affected ?? 0;
   }
 
-  async findById(
-    businessId: string,
-    itemId: string,
-  ): Promise<MenuItem | null> {
+  async findById(businessId: string, itemId: string): Promise<MenuItem | null> {
     if (!isUuid(itemId)) {
       return null;
     }
@@ -438,9 +436,7 @@ export class MenuService {
       }))
       .filter(
         (variant) =>
-          variant.name &&
-          Number.isFinite(variant.price) &&
-          variant.price >= 0,
+          variant.name && Number.isFinite(variant.price) && variant.price >= 0,
       );
 
     if (cleaned.length < 2) {

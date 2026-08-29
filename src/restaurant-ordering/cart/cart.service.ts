@@ -330,19 +330,22 @@ export class CartService {
     businessId: string,
     clientPhone: string,
   ): Promise<void> {
-    await this.sessionService.mutateSession(businessId, clientPhone, (session) => {
-      session.cart = [];
-      session.delivery_info = null;
-      session.order_note = null;
-    });
+    await this.sessionService.mutateSession(
+      businessId,
+      clientPhone,
+      (session) => {
+        session.cart = [];
+        session.delivery_info = null;
+        session.order_note = null;
+      },
+    );
   }
 
   async clearCart(
     businessId: string,
     clientPhone: string,
   ): Promise<
-    | { success: true }
-    | { success: false; reason: 'cart_already_empty' }
+    { success: true } | { success: false; reason: 'cart_already_empty' }
   > {
     const session = await this.sessionService.getSession(
       businessId,

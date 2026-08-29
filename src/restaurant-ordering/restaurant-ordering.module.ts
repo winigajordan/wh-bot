@@ -8,12 +8,7 @@ import { OrdersService } from './orders/orders.service';
 import { RestaurantOrderingToolsService } from './tools/restaurant-ordering-tools.service';
 
 @Module({
-  imports: [
-    ConversationModule,
-    MenuModule,
-    OrdersModule,
-    DeliveryZonesModule,
-  ],
+  imports: [ConversationModule, MenuModule, OrdersModule, DeliveryZonesModule],
   providers: [CartService, OrdersService, RestaurantOrderingToolsService],
   exports: [
     MenuModule,

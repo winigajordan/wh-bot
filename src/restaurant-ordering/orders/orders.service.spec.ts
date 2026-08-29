@@ -98,7 +98,12 @@ describe('OrdersService', () => {
         },
         {
           provide: CartService,
-          useValue: { getCartSummary, clearCartAndDelivery, replaceCartItems: jest.fn(), setOrderNote: jest.fn() },
+          useValue: {
+            getCartSummary,
+            clearCartAndDelivery,
+            replaceCartItems: jest.fn(),
+            setOrderNote: jest.fn(),
+          },
         },
         {
           provide: MenuService,
@@ -133,18 +138,22 @@ describe('OrdersService', () => {
       order_note: null,
     });
 
-    await expect(
-      service.confirmOrder('biz-1', '22177', true),
-    ).resolves.toEqual({
-      success: true,
-      order_number: 'CMD-0001',
-      subtotal: 3500,
-      delivery_fee: 0,
-      total: 3500,
-    });
+    await expect(service.confirmOrder('biz-1', '22177', true)).resolves.toEqual(
+      {
+        success: true,
+        order_number: 'CMD-0001',
+        subtotal: 3500,
+        delivery_fee: 0,
+        total: 3500,
+      },
+    );
 
     expect(orderSave).toHaveBeenCalledWith(
-      expect.objectContaining({ note: null, deliveryFee: '0.00', total: '3500.00' }),
+      expect.objectContaining({
+        note: null,
+        deliveryFee: '0.00',
+        total: '3500.00',
+      }),
     );
   });
 
@@ -177,15 +186,15 @@ describe('OrdersService', () => {
     });
     findZoneById.mockResolvedValue({ id: 'zone-1', deliveryFee: '1500.00' });
 
-    await expect(
-      service.confirmOrder('biz-1', '22177', true),
-    ).resolves.toEqual({
-      success: true,
-      order_number: 'CMD-0001',
-      subtotal: 3500,
-      delivery_fee: 1500,
-      total: 5000,
-    });
+    await expect(service.confirmOrder('biz-1', '22177', true)).resolves.toEqual(
+      {
+        success: true,
+        order_number: 'CMD-0001',
+        subtotal: 3500,
+        delivery_fee: 1500,
+        total: 5000,
+      },
+    );
 
     expect(orderSave).toHaveBeenCalledWith(
       expect.objectContaining({ deliveryFee: '1500.00', total: '5000.00' }),
@@ -199,9 +208,9 @@ describe('OrdersService', () => {
       order_note: null,
     });
 
-    await expect(
-      service.confirmOrder('biz-1', '22177', true),
-    ).resolves.toEqual({ success: false, reason: 'empty_cart' });
+    await expect(service.confirmOrder('biz-1', '22177', true)).resolves.toEqual(
+      { success: false, reason: 'empty_cart' },
+    );
   });
 
   it('liste les commandes d’un business', async () => {

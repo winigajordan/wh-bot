@@ -10,9 +10,7 @@ export class BusinessesService {
     private readonly businessRepository: Repository<Business>,
   ) {}
 
-  findByWhatsAppPhoneNumberId(
-    phoneNumberId: string,
-  ): Promise<Business | null> {
+  findByWhatsAppPhoneNumberId(phoneNumberId: string): Promise<Business | null> {
     return this.businessRepository.findOne({
       where: { whatsappPhoneNumberId: phoneNumberId },
       relations: { module: true },

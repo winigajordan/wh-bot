@@ -29,10 +29,7 @@ export class DashboardZonesController {
   }
 
   @Post()
-  async create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() body: unknown,
-  ) {
+  async create(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
     const input = this.parseCreateBody(body);
     return this.deliveryZonesService.createZone(user.businessId, input);
   }

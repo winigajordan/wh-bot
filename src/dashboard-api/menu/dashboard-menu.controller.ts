@@ -68,10 +68,7 @@ export class DashboardMenuController {
   }
 
   @Post()
-  async create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() body: unknown,
-  ) {
+  async create(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
     const input = this.parseCreateBody(body);
     const item = await this.menuService.createItem(user.businessId, input);
     return this.menuService.toDashboardDto(item);
@@ -84,11 +81,7 @@ export class DashboardMenuController {
     @Body() body: unknown,
   ) {
     const input = this.parseUpdateBody(body);
-    const item = await this.menuService.updateItem(
-      user.businessId,
-      id,
-      input,
-    );
+    const item = await this.menuService.updateItem(user.businessId, id, input);
     if (!item) {
       throw new NotFoundException('Article introuvable');
     }
@@ -246,47 +239,47 @@ export class DashboardMenuController {
       if (typeof raw.name !== 'string' || !raw.name.trim()) {
         throw new BadRequestException('option.name requis (string non vide)');
       }
-    if (raw.required !== undefined && typeof raw.required !== 'boolean') {
-      throw new BadRequestException('option.required doit être un boolean');
-    }
-    if (raw.choices !== undefined) {
-      if (!Array.isArray(raw.choices)) {
-        throw new BadRequestException('option.choices doit être un tableau');
+      if (raw.required !== undefined && typeof raw.required !== 'boolean') {
+        throw new BadRequestException('option.required doit être un boolean');
       }
-      for (const choice of raw.choices) {
-        if (typeof choice === 'string') {
-          if (!choice.trim()) {
+      if (raw.choices !== undefined) {
+        if (!Array.isArray(raw.choices)) {
+          throw new BadRequestException('option.choices doit être un tableau');
+        }
+        for (const choice of raw.choices) {
+          if (typeof choice === 'string') {
+            if (!choice.trim()) {
+              throw new BadRequestException(
+                'option.choices ne doit contenir que des libellés non vides',
+              );
+            }
+            continue;
+          }
+          if (!choice || typeof choice !== 'object') {
             throw new BadRequestException(
-              'option.choices ne doit contenir que des libellés non vides',
+              'option.choices doit être string[] ou { name, price? }[]',
             );
           }
-          continue;
-        }
-        if (!choice || typeof choice !== 'object') {
-          throw new BadRequestException(
-            'option.choices doit être string[] ou { name, price? }[]',
-          );
-        }
-        const choiceRaw = choice as Record<string, unknown>;
-        if (typeof choiceRaw.name !== 'string' || !choiceRaw.name.trim()) {
-          throw new BadRequestException(
-            'choice.name requis (string non vide)',
-          );
-        }
-        if (choiceRaw.price !== undefined) {
-          const choicePrice =
-            typeof choiceRaw.price === 'number'
-              ? choiceRaw.price
-              : Number(choiceRaw.price);
-          if (!Number.isFinite(choicePrice) || choicePrice < 0) {
+          const choiceRaw = choice as Record<string, unknown>;
+          if (typeof choiceRaw.name !== 'string' || !choiceRaw.name.trim()) {
             throw new BadRequestException(
-              'choice.price doit être un nombre ≥ 0',
+              'choice.name requis (string non vide)',
             );
+          }
+          if (choiceRaw.price !== undefined) {
+            const choicePrice =
+              typeof choiceRaw.price === 'number'
+                ? choiceRaw.price
+                : Number(choiceRaw.price);
+            if (!Number.isFinite(choicePrice) || choicePrice < 0) {
+              throw new BadRequestException(
+                'choice.price doit être un nombre ≥ 0',
+              );
+            }
           }
         }
       }
-    }
-    if (raw.price !== undefined) {
+      if (raw.price !== undefined) {
         const price =
           typeof raw.price === 'number' ? raw.price : Number(raw.price);
         if (!Number.isFinite(price) || price < 0) {

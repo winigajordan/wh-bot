@@ -79,10 +79,7 @@ function extractInteractiveTitle(
     return null;
   }
 
-  if (
-    interactive.type === 'button_reply' &&
-    interactive.button_reply?.title
-  ) {
+  if (interactive.type === 'button_reply' && interactive.button_reply?.title) {
     return interactive.button_reply.title;
   }
 

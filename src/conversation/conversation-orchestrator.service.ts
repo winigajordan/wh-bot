@@ -116,7 +116,8 @@ export class ConversationOrchestratorService {
       this.moduleToolRegistry.consumePendingInteractiveMessage(moduleKey);
 
     if (pendingInteractive) {
-      const sessionContent = formatInteractiveSessionContent(pendingInteractive);
+      const sessionContent =
+        formatInteractiveSessionContent(pendingInteractive);
       await this.sessionService.appendAssistantMessage(
         business.id,
         from,
@@ -138,6 +139,8 @@ export class ConversationOrchestratorService {
       );
     }
 
-    return reply ? { outbound: { type: 'text', body: reply } } : { outbound: null };
+    return reply
+      ? { outbound: { type: 'text', body: reply } }
+      : { outbound: null };
   }
 }

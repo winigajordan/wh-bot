@@ -179,9 +179,7 @@ export class ClaudeService implements AiService {
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: maxTokens,
-      system: useCache
-        ? this.buildCachedSystem(systemPrompt)
-        : systemPrompt,
+      system: useCache ? this.buildCachedSystem(systemPrompt) : systemPrompt,
       messages,
       ...(tools?.length
         ? { tools: useCache ? this.buildCachedTools(tools) : tools }
@@ -279,16 +277,14 @@ export class ClaudeService implements AiService {
     ].join('\n');
 
     const content: Anthropic.ContentBlockParam[] = [
-      ...images.map(
-        (image): Anthropic.ImageBlockParam => ({
-          type: 'image',
-          source: {
-            type: 'base64',
-            media_type: image.mediaType,
-            data: image.base64,
-          },
-        }),
-      ),
+      ...images.map((image): Anthropic.ImageBlockParam => ({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: image.mediaType,
+          data: image.base64,
+        },
+      })),
       {
         type: 'text',
         text:

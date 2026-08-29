@@ -48,7 +48,11 @@ describe('ConversationProcessor', () => {
         { provide: ConversationSessionService, useValue: { getSession } },
         {
           provide: WhatsappClientService,
-          useValue: { sendTextMessage, sendOutboundMessage, markAsReadWithTyping },
+          useValue: {
+            sendTextMessage,
+            sendOutboundMessage,
+            markAsReadWithTyping,
+          },
         },
         {
           provide: ConversationDebounceService,
@@ -99,10 +103,7 @@ describe('ConversationProcessor', () => {
   it('appelle read + typing avant Claude', async () => {
     await processor.process({ data: payload } as never);
 
-    expect(markAsReadWithTyping).toHaveBeenCalledWith(
-      'phone-1',
-      'wamid.test',
-    );
+    expect(markAsReadWithTyping).toHaveBeenCalledWith('phone-1', 'wamid.test');
     expect(processConversation).toHaveBeenCalled();
   });
 

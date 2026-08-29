@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { PendingInteractiveMessage } from '../whatsapp-client/interactive-message.types';
-import {
-  RESTAURANT_ORDERING_MODULE_KEY,
-} from '../restaurant-ordering/restaurant-ordering.module-definition';
+import { RESTAURANT_ORDERING_MODULE_KEY } from '../restaurant-ordering/restaurant-ordering.module-definition';
 import {
   RestaurantOrderingToolsService,
   ToolExecutionContext,

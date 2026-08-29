@@ -4,12 +4,10 @@
  * - Gras/italique/souligné WhatsApp (* … *, _ … _, ~ … ~) → texte brut
  * - Emojis de statut collés à « confirmé(e) »
  */
-const STATUS_EMOJI_AFTER_CONFIRMED =
-  /(confirmé(?:e)?)\s*[✅❌🎉]+/gi;
+const STATUS_EMOJI_AFTER_CONFIRMED = /(confirmé(?:e)?)\s*[✅❌🎉]+/giu;
 
 /** WhatsApp : *gras*, _italique_, ~barré~ — on garde le texte intérieur. */
-const WHATSAPP_INLINE_FORMAT =
-  /(\*|_|~)([^*_\n~]+)\1/g;
+const WHATSAPP_INLINE_FORMAT = /(\*|_|~)([^*_\n~]+)\1/g;
 
 export function sanitizeWhatsappText(text: string): string {
   return text

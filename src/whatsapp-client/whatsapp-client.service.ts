@@ -107,11 +107,7 @@ export class WhatsappClientService {
       const description = row.description
         ? truncateInteractiveTitle(row.description, LIST_ROW_DESCRIPTION_MAX)
         : undefined;
-      if (
-        row.description &&
-        description &&
-        description !== row.description
-      ) {
+      if (row.description && description && description !== row.description) {
         this.logger.warn(
           `Description ligne liste tronquée (${row.description.length} > ${LIST_ROW_DESCRIPTION_MAX}) : ${row.description}`,
         );
@@ -180,9 +176,7 @@ export class WhatsappClientService {
     const accessToken = this.config.get<string>('whatsapp.accessToken') ?? '';
 
     if (!accessToken) {
-      this.logger.error(
-        'WHATSAPP_ACCESS_TOKEN manquant — read/typing ignoré',
-      );
+      this.logger.error('WHATSAPP_ACCESS_TOKEN manquant — read/typing ignoré');
       return;
     }
 
@@ -223,7 +217,9 @@ export class WhatsappClientService {
     const accessToken = this.config.get<string>('whatsapp.accessToken') ?? '';
 
     if (!accessToken) {
-      this.logger.error('WHATSAPP_ACCESS_TOKEN manquant — envoi WhatsApp ignoré');
+      this.logger.error(
+        'WHATSAPP_ACCESS_TOKEN manquant — envoi WhatsApp ignoré',
+      );
       return;
     }
 
@@ -246,8 +242,6 @@ export class WhatsappClientService {
       return;
     }
 
-    this.logger.log(
-      `Send API OK → ${to} via phone_number_id=${phoneNumberId}`,
-    );
+    this.logger.log(`Send API OK → ${to} via phone_number_id=${phoneNumberId}`);
   }
 }

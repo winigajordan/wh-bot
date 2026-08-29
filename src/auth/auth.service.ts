@@ -44,9 +44,7 @@ export class AuthService {
 
     const business = await this.businessesService.findByUserId(user.id);
     if (!business) {
-      throw new UnauthorizedException(
-        'Aucun business lié à ce compte',
-      );
+      throw new UnauthorizedException('Aucun business lié à ce compte');
     }
 
     const payload: JwtPayload = {
@@ -67,9 +65,11 @@ export class AuthService {
     };
   }
 
-  async getMe(userId: string): Promise<LoginResult['user'] & {
-    business: LoginResult['business'];
-  }> {
+  async getMe(userId: string): Promise<
+    LoginResult['user'] & {
+      business: LoginResult['business'];
+    }
+  > {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException();
