@@ -15,6 +15,9 @@ import { CONVERSATION_QUEUE } from './conversation-queue.constants';
       useFactory: (config: ConfigService) => ({
         connection: {
           url: config.get<string>('redis.url'),
+          maxRetriesPerRequest: null,
+          enableReadyCheck: true,
+          keepAlive: 10_000,
         },
       }),
       inject: [ConfigService],
