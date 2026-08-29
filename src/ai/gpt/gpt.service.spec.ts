@@ -29,7 +29,8 @@ function usage(overrides: Record<string, number> = {}) {
   return {
     input_tokens: overrides.input_tokens ?? 10,
     output_tokens: overrides.output_tokens ?? 5,
-    total_tokens: (overrides.input_tokens ?? 10) + (overrides.output_tokens ?? 5),
+    total_tokens:
+      (overrides.input_tokens ?? 10) + (overrides.output_tokens ?? 5),
     input_tokens_details: {
       cached_tokens: overrides.cached_tokens ?? 0,
       cache_write_tokens: 0,

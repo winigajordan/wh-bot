@@ -77,10 +77,9 @@ export class WebhookController {
     const messages = parseIncomingTextMessages(req.rawBody!);
 
     for (const message of messages) {
-      const business =
-        await this.businessesService.findByWhatsAppPhoneNumberId(
-          message.phoneNumberId,
-        );
+      const business = await this.businessesService.findByWhatsAppPhoneNumberId(
+        message.phoneNumberId,
+      );
 
       if (!business) {
         this.logger.warn(

@@ -7,9 +7,7 @@ import { GptService } from './gpt/gpt.service';
 
 const logger = new Logger('AiModule');
 
-export function resolveAiProviderKey(
-  config: ConfigService,
-): AiProvider {
+export function resolveAiProviderKey(config: ConfigService): AiProvider {
   const raw = (config.get<string>('ai.provider') ?? 'claude')
     .trim()
     .toLowerCase();

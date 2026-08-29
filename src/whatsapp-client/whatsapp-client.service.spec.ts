@@ -143,7 +143,10 @@ describe('WhatsappClientService', () => {
                 },
                 {
                   type: 'reply',
-                  reply: { id: 'delivery_mode_pickup', title: 'Retrait sur place' },
+                  reply: {
+                    id: 'delivery_mode_pickup',
+                    title: 'Retrait sur place',
+                  },
                 },
               ],
             },

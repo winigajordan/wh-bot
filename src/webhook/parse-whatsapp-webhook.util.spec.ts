@@ -56,9 +56,9 @@ describe('parseIncomingTextMessages', () => {
       },
     ];
 
-    expect(parseIncomingTextMessages(Buffer.from(JSON.stringify(payload)))).toEqual(
-      [],
-    );
+    expect(
+      parseIncomingTextMessages(Buffer.from(JSON.stringify(payload))),
+    ).toEqual([]);
   });
 
   it('ignore les payloads sans entry.messages', () => {
@@ -88,7 +88,9 @@ describe('parseIncomingTextMessages', () => {
       },
     ];
 
-    expect(parseIncomingTextMessages(Buffer.from(JSON.stringify(payload)))).toEqual([
+    expect(
+      parseIncomingTextMessages(Buffer.from(JSON.stringify(payload))),
+    ).toEqual([
       {
         phoneNumberId: '123456789012345',
         from: '221779876543',
@@ -109,12 +111,18 @@ describe('parseIncomingTextMessages', () => {
         type: 'interactive',
         interactive: {
           type: 'list_reply',
-          list_reply: { id: 'zone_0_fass', title: 'Fass', description: 'Frais : 1 200 F' },
+          list_reply: {
+            id: 'zone_0_fass',
+            title: 'Fass',
+            description: 'Frais : 1 200 F',
+          },
         },
       },
     ];
 
-    expect(parseIncomingTextMessages(Buffer.from(JSON.stringify(payload)))).toEqual([
+    expect(
+      parseIncomingTextMessages(Buffer.from(JSON.stringify(payload))),
+    ).toEqual([
       {
         phoneNumberId: '123456789012345',
         from: '221779876543',

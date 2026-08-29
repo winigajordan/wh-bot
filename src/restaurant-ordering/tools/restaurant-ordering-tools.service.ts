@@ -205,7 +205,10 @@ export class RestaurantOrderingToolsService {
   ): Array<{ item_id: string; quantity: number; options?: unknown[] }> {
     if (Array.isArray(input.items)) {
       return input.items
-        .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+        .filter(
+          (entry): entry is Record<string, unknown> =>
+            !!entry && typeof entry === 'object',
+        )
         .map((entry) => ({
           item_id: typeof entry.item_id === 'string' ? entry.item_id : '',
           quantity:
@@ -250,7 +253,9 @@ export class RestaurantOrderingToolsService {
 
   private parseRemoveItemIds(input: Record<string, unknown>): string[] {
     if (Array.isArray(input.item_ids)) {
-      return input.item_ids.filter((id): id is string => typeof id === 'string');
+      return input.item_ids.filter(
+        (id): id is string => typeof id === 'string',
+      );
     }
     if (typeof input.item_id === 'string') {
       return [input.item_id];
@@ -264,7 +269,8 @@ export class RestaurantOrderingToolsService {
     if (zones.length > 0) {
       this.setPendingInteractiveMessage({
         type: 'list',
-        bodyText: 'Choisissez votre quartier — vous pourrez préciser l’adresse juste après :',
+        bodyText:
+          'Choisissez votre quartier — vous pourrez préciser l’adresse juste après :',
         buttonLabel: 'Choisir',
         rows: zones.map((zone, index) => ({
           id: `zone_${index}_${this.slugify(zone.name)}`,
@@ -290,9 +296,8 @@ export class RestaurantOrderingToolsService {
     context: ToolExecutionContext,
     input: Record<string, unknown>,
   ): Promise<unknown> {
-    const mode = input.mode === 'delivery' || input.mode === 'pickup'
-      ? input.mode
-      : null;
+    const mode =
+      input.mode === 'delivery' || input.mode === 'pickup' ? input.mode : null;
 
     if (!mode) {
       return { valid: false, available_zones: [] };

@@ -99,11 +99,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   /** Lit et efface le flag. Retourne true s’il était présent. */
   async consumeFlag(key: string): Promise<boolean> {
-    const result = await this.client
-      .multi()
-      .get(key)
-      .del(key)
-      .exec();
+    const result = await this.client.multi().get(key).del(key).exec();
     const value = result?.[0]?.[1];
     return typeof value === 'string' && value.length > 0;
   }

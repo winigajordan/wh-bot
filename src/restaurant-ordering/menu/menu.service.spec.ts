@@ -122,7 +122,11 @@ describe('MenuService', () => {
               price: 3500,
               price_label: '3 500 F',
             }),
-            expect.objectContaining({ id: '3', name: 'Yassa', available: false }),
+            expect.objectContaining({
+              id: '3',
+              name: 'Yassa',
+              available: false,
+            }),
           ],
         },
         {

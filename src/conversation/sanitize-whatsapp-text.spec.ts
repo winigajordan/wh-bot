@@ -14,9 +14,9 @@ describe('sanitizeWhatsappText', () => {
   });
 
   it('retire le gras WhatsApp (*…*) et garde le texte', () => {
-    expect(
-      sanitizeWhatsappText('Total : *7 500 F* pour *Point E*'),
-    ).toBe('Total : 7 500 F pour Point E');
+    expect(sanitizeWhatsappText('Total : *7 500 F* pour *Point E*')).toBe(
+      'Total : 7 500 F pour Point E',
+    );
     expect(sanitizeWhatsappText('• *Grillades* : viandes')).toBe(
       '• Grillades : viandes',
     );

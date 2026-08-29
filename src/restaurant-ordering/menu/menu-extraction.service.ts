@@ -113,8 +113,7 @@ export class MenuExtractionService {
       this.extractionRepo.create({
         businessId,
         status: 'pending_review',
-        sourceFilename:
-          filenames.length > 0 ? filenames.join(', ') : null,
+        sourceFilename: filenames.length > 0 ? filenames.join(', ') : null,
         sourceMediaType: prepared.map((entry) => entry.mediaType).join(','),
         extractedJson: payload,
         rawModelText: rawText || null,
@@ -295,8 +294,7 @@ export class MenuExtractionService {
       return null;
     }
     const raw = value as Record<string, unknown>;
-    const name =
-      typeof raw.name === 'string' ? raw.name.trim() : '';
+    const name = typeof raw.name === 'string' ? raw.name.trim() : '';
     if (!name) {
       return null;
     }
@@ -334,12 +332,10 @@ export class MenuExtractionService {
       description = null;
     }
 
-    const available =
-      typeof raw.available === 'boolean' ? raw.available : true;
+    const available = typeof raw.available === 'boolean' ? raw.available : true;
 
     let options = this.menuService.normalizeOptions(raw.options);
-    let price =
-      typeof raw.price === 'number' ? raw.price : Number(raw.price);
+    let price = typeof raw.price === 'number' ? raw.price : Number(raw.price);
 
     const variants = this.readVariants(raw.variants ?? raw.prices);
     if (variants.length >= 2) {
@@ -347,10 +343,7 @@ export class MenuExtractionService {
         typeof raw.variant_label === 'string' && raw.variant_label.trim()
           ? raw.variant_label.trim()
           : this.guessVariantOptionName(variants.map((v) => v.name));
-      const converted = this.menuService.variantsToOption(
-        variants,
-        optionName,
-      );
+      const converted = this.menuService.variantsToOption(variants, optionName);
       if (converted) {
         price = converted.basePrice;
         // Remplace une éventuelle option Format déjà présente
@@ -358,8 +351,7 @@ export class MenuExtractionService {
           converted.option,
           ...options.filter(
             (option) =>
-              option.name.toLowerCase() !==
-              converted.option.name.toLowerCase(),
+              option.name.toLowerCase() !== converted.option.name.toLowerCase(),
           ),
         ];
       }
@@ -378,9 +370,7 @@ export class MenuExtractionService {
     };
   }
 
-  private readVariants(
-    value: unknown,
-  ): Array<{ name: string; price: number }> {
+  private readVariants(value: unknown): Array<{ name: string; price: number }> {
     if (!Array.isArray(value)) {
       return [];
     }

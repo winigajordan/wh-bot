@@ -27,7 +27,9 @@ async function seed(): Promise<void> {
   const moduleRepo = dataSource.getRepository(PlatformModule);
   const businessRepo = dataSource.getRepository(Business);
 
-  const restoModule = await moduleRepo.findOneBy({ key: 'restaurant_ordering' });
+  const restoModule = await moduleRepo.findOneBy({
+    key: 'restaurant_ordering',
+  });
   if (!restoModule) {
     throw new Error(
       "Module restaurant_ordering introuvable. Lance d'abord npm run migration:run.",

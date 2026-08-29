@@ -13,7 +13,8 @@ describe('restaurantOrderingModuleDefinition', () => {
   };
 
   it('injecte le nom, l’adresse et le contact', () => {
-    const prompt = restaurantOrderingModuleDefinition.buildSystemPrompt(business);
+    const prompt =
+      restaurantOrderingModuleDefinition.buildSystemPrompt(business);
 
     expect(prompt).toContain('Les délices de Jordan');
     expect(prompt).toContain('Almadies, Dakar');

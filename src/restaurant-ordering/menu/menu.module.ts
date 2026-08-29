@@ -16,4 +16,3 @@ import { MenuService } from './menu.service';
   exports: [TypeOrmModule, MenuService, MenuExtractionService],
 })
 export class MenuModule {}
-

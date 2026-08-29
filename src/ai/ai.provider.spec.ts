@@ -19,8 +19,7 @@ describe('resolveAiProvider', () => {
 
   function configWith(provider: string | undefined): ConfigService {
     return {
-      get: (key: string) =>
-        key === 'ai.provider' ? provider : undefined,
+      get: (key: string) => (key === 'ai.provider' ? provider : undefined),
     } as ConfigService;
   }
 
@@ -50,8 +49,7 @@ describe('resolveAiProvider', () => {
 describe('resolveAiProviderKey', () => {
   function configWith(provider: string | undefined): ConfigService {
     return {
-      get: (key: string) =>
-        key === 'ai.provider' ? provider : undefined,
+      get: (key: string) => (key === 'ai.provider' ? provider : undefined),
     } as ConfigService;
   }
 

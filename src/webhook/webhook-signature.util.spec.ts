@@ -1,4 +1,7 @@
-import { computeWebhookSignature, verifyWebhookSignature } from './webhook-signature.util';
+import {
+  computeWebhookSignature,
+  verifyWebhookSignature,
+} from './webhook-signature.util';
 
 describe('webhook-signature.util', () => {
   const secret = 'test-app-secret';
@@ -15,17 +18,19 @@ describe('webhook-signature.util', () => {
   });
 
   it('refuse une signature invalide', () => {
-    expect(
-      verifyWebhookSignature(rawBody, 'sha256=deadbeef', secret),
-    ).toBe(false);
+    expect(verifyWebhookSignature(rawBody, 'sha256=deadbeef', secret)).toBe(
+      false,
+    );
   });
 
   it('refuse un header ou secret manquant', () => {
-    expect(verifyWebhookSignature(undefined, 'sha256=abc', secret)).toBe(
-      false,
-    );
+    expect(verifyWebhookSignature(undefined, 'sha256=abc', secret)).toBe(false);
     expect(
-      verifyWebhookSignature(rawBody, computeWebhookSignature(rawBody, secret), ''),
+      verifyWebhookSignature(
+        rawBody,
+        computeWebhookSignature(rawBody, secret),
+        '',
+      ),
     ).toBe(false);
   });
 });

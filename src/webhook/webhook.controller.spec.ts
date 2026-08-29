@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request } from 'express';
 import { BusinessesService } from '../businesses/businesses.service';
-import { Business } from '../businesses/entities/business.entity';
 import { ConversationDebounceService } from '../conversation-queue/conversation-debounce.service';
 import { ConversationSessionService } from '../conversation/conversation-session.service';
 import { WebhookController } from './webhook.controller';
@@ -60,15 +59,15 @@ describe('WebhookController', () => {
 
   describe('GET verify', () => {
     it('retourne hub.challenge si le token correspond', () => {
-      expect(
-        controller.verify('subscribe', 'mon-verify-token', '123456'),
-      ).toBe('123456');
+      expect(controller.verify('subscribe', 'mon-verify-token', '123456')).toBe(
+        '123456',
+      );
     });
 
     it('refuse un mauvais token', () => {
-      expect(() =>
-        controller.verify('subscribe', 'mauvais', '123456'),
-      ).toThrow(ForbiddenException);
+      expect(() => controller.verify('subscribe', 'mauvais', '123456')).toThrow(
+        ForbiddenException,
+      );
     });
 
     it('refuse un mode autre que subscribe', () => {
@@ -123,7 +122,10 @@ describe('WebhookController', () => {
       } as Business);
 
       await expect(
-        controller.receive({ rawBody: body } as RawBodyRequest<Request>, signature),
+        controller.receive(
+          { rawBody: body } as RawBodyRequest<Request>,
+          signature,
+        ),
       ).resolves.toEqual({ status: 'ok' });
 
       expect(findByWhatsAppPhoneNumberId).toHaveBeenCalledWith(
@@ -172,7 +174,10 @@ describe('WebhookController', () => {
       findByWhatsAppPhoneNumberId.mockResolvedValue(null);
 
       await expect(
-        controller.receive({ rawBody: body } as RawBodyRequest<Request>, signature),
+        controller.receive(
+          { rawBody: body } as RawBodyRequest<Request>,
+          signature,
+        ),
       ).resolves.toEqual({ status: 'ok' });
     });
 

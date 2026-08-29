@@ -21,6 +21,14 @@ function businessRoom(businessId: string): string {
   return `business:${businessId}`;
 }
 
+type DashboardSocketData = {
+  businessId?: string;
+};
+
+function socketData(client: Socket): DashboardSocketData {
+  return client.data as DashboardSocketData;
+}
+
 @WebSocketGateway({
   namespace: '/dashboard',
   cors: {
@@ -65,7 +73,7 @@ export class DashboardOrdersGateway
         return;
       }
 
-      client.data.businessId = business.id;
+      socketData(client).businessId = business.id;
       await client.join(businessRoom(business.id));
       // this.logger.debug(
       //   `Dashboard WS connected user=${payload.email} business=${business.id}`,
@@ -81,7 +89,7 @@ export class DashboardOrdersGateway
   }
 
   handleDisconnect(client: Socket): void {
-    const businessId = client.data?.businessId as string | undefined;
+    const businessId = socketData(client).businessId;
     this.logger.debug(
       `Dashboard WS disconnected business=${businessId ?? 'unknown'}`,
     );
@@ -102,7 +110,8 @@ export class DashboardOrdersGateway
   }
 
   private extractToken(client: Socket): string | null {
-    const fromAuth = client.handshake.auth?.token;
+    const auth = client.handshake.auth as { token?: unknown } | undefined;
+    const fromAuth = auth?.token;
     if (typeof fromAuth === 'string' && fromAuth.trim()) {
       return fromAuth.trim();
     }

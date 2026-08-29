@@ -10,7 +10,9 @@ describe('zone-matching.util', () => {
   });
 
   it('matche une zone contenue dans l’adresse', () => {
-    expect(matchZoneInAddress('Almadies', 'Rue 10, Almadies, Dakar')).toBe(true);
+    expect(matchZoneInAddress('Almadies', 'Rue 10, Almadies, Dakar')).toBe(
+      true,
+    );
   });
 
   it('ne matche pas une zone absente', () => {

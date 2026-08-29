@@ -60,9 +60,7 @@ export class ConversationDebounceService {
       removeOnFail: 100,
     });
 
-    this.logger.debug(
-      `Job conversation programmé ${jobId} delay=${delay}ms`,
-    );
+    this.logger.debug(`Job conversation programmé ${jobId} delay=${delay}ms`);
   }
 
   /**

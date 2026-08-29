@@ -10,10 +10,7 @@ import {
 import { Business } from '../../../businesses/entities/business.entity';
 import type { ExtractedMenuPayload } from '../menu-extraction.types';
 
-export type MenuExtractionStatus =
-  | 'pending_review'
-  | 'published'
-  | 'discarded';
+export type MenuExtractionStatus = 'pending_review' | 'published' | 'discarded';
 
 @Entity('menu_extractions')
 export class MenuExtraction {

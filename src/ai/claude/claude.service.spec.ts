@@ -276,9 +276,7 @@ describe('ClaudeService', () => {
   });
 
   describe('prompt caching', () => {
-    async function serviceWithCache(
-      enabled: boolean,
-    ): Promise<ClaudeService> {
+    async function serviceWithCache(enabled: boolean): Promise<ClaudeService> {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           ClaudeService,

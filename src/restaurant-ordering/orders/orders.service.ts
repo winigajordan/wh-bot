@@ -4,7 +4,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { isUuid } from '../../common/uuid.util';
 import { ConversationSessionService } from '../../conversation/conversation-session.service';
-import { SessionCartItem, SessionDeliveryInfo } from '../../conversation/session.types';
+import {
+  SessionCartItem,
+  SessionDeliveryInfo,
+} from '../../conversation/session.types';
 import {
   DASHBOARD_ORDER_CREATED,
   DASHBOARD_ORDER_UPDATED,
@@ -67,8 +70,7 @@ export const ORDER_STATUSES: OrderStatus[] = [
 
 export function isOrderStatus(value: unknown): value is OrderStatus {
   return (
-    typeof value === 'string' &&
-    (ORDER_STATUSES as string[]).includes(value)
+    typeof value === 'string' && (ORDER_STATUSES as string[]).includes(value)
   );
 }
 
@@ -99,7 +101,13 @@ export class OrdersService {
       note?: string;
     } = {},
   ): Promise<
-    | { success: true; order_number: string; subtotal: number; delivery_fee: number; total: number }
+    | {
+        success: true;
+        order_number: string;
+        subtotal: number;
+        delivery_fee: number;
+        total: number;
+      }
     | {
         success: false;
         reason:
@@ -204,26 +212,30 @@ export class OrdersService {
           price: item.price,
           quantity: item.quantity,
           options: Array.isArray(item.options)
-            ? item.options.map((option) => ({
-                name:
-                  typeof option === 'object' &&
-                  option &&
-                  typeof (option as { name?: unknown }).name === 'string'
-                    ? (option as { name: string }).name
-                    : String(option),
-                price:
-                  typeof option === 'object' &&
-                  option &&
-                  typeof (option as { price?: unknown }).price === 'number'
-                    ? (option as { price: number }).price
-                    : 0,
-                choice:
-                  typeof option === 'object' &&
-                  option &&
-                  typeof (option as { choice?: unknown }).choice === 'string'
-                    ? (option as { choice: string }).choice
-                    : null,
-              }))
+            ? item.options.map((option) => {
+                if (typeof option === 'object' && option) {
+                  const typed = option as {
+                    name?: unknown;
+                    price?: unknown;
+                    choice?: unknown;
+                  };
+                  return {
+                    name:
+                      typeof typed.name === 'string' ? typed.name : 'option',
+                    price: typeof typed.price === 'number' ? typed.price : 0,
+                    choice:
+                      typeof typed.choice === 'string' ? typed.choice : null,
+                  };
+                }
+                if (
+                  typeof option === 'string' ||
+                  typeof option === 'number' ||
+                  typeof option === 'boolean'
+                ) {
+                  return { name: String(option), price: 0, choice: null };
+                }
+                return { name: 'option', price: 0, choice: null };
+              })
             : [],
         })),
         deliveryMode: session.delivery_info.mode,

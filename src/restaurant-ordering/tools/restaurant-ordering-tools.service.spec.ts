@@ -89,7 +89,12 @@ describe('RestaurantOrderingToolsService', () => {
   });
 
   it('exécute add_to_cart en batch via items', async () => {
-    addToCart.mockResolvedValue({ success: true, cart: [], added: [], failed: [] });
+    addToCart.mockResolvedValue({
+      success: true,
+      cart: [],
+      added: [],
+      failed: [],
+    });
 
     await service.execute(
       'add_to_cart',
@@ -109,7 +114,12 @@ describe('RestaurantOrderingToolsService', () => {
   });
 
   it('accepte encore add_to_cart legacy item_id/quantity', async () => {
-    addToCart.mockResolvedValue({ success: true, cart: [], added: [], failed: [] });
+    addToCart.mockResolvedValue({
+      success: true,
+      cart: [],
+      added: [],
+      failed: [],
+    });
 
     await service.execute(
       'add_to_cart',
@@ -164,9 +174,9 @@ describe('RestaurantOrderingToolsService', () => {
   });
 
   it('ask_delivery_mode stocke un payload boutons', async () => {
-    await expect(service.execute('ask_delivery_mode', {}, context)).resolves.toEqual(
-      { presented: true },
-    );
+    await expect(
+      service.execute('ask_delivery_mode', {}, context),
+    ).resolves.toEqual({ presented: true });
 
     expect(service.consumePendingInteractiveMessage()).toEqual({
       type: 'buttons',
@@ -184,7 +194,9 @@ describe('RestaurantOrderingToolsService', () => {
       { name: 'Médina', delivery_fee: 1500 },
     ]);
 
-    await expect(service.execute('get_delivery_zones', {}, context)).resolves.toEqual({
+    await expect(
+      service.execute('get_delivery_zones', {}, context),
+    ).resolves.toEqual({
       zones: [
         { name: 'Fass', delivery_fee: 1200 },
         { name: 'Médina', delivery_fee: 1500 },
@@ -194,10 +206,17 @@ describe('RestaurantOrderingToolsService', () => {
     expect(service.consumePendingInteractiveMessage()).toEqual(
       expect.objectContaining({
         type: 'list',
-        bodyText: 'Choisissez votre quartier — vous pourrez préciser l’adresse juste après :',
+        bodyText:
+          'Choisissez votre quartier — vous pourrez préciser l’adresse juste après :',
         rows: [
-          expect.objectContaining({ title: 'Fass', description: 'Frais : 1200 F' }),
-          expect.objectContaining({ title: 'Médina', description: 'Frais : 1500 F' }),
+          expect.objectContaining({
+            title: 'Fass',
+            description: 'Frais : 1200 F',
+          }),
+          expect.objectContaining({
+            title: 'Médina',
+            description: 'Frais : 1500 F',
+          }),
         ],
       }),
     );

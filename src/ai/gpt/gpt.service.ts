@@ -39,8 +39,7 @@ export class GptService implements AiService {
     this.client = new OpenAI({
       apiKey: this.config.get<string>('openai.apiKey') ?? '',
     });
-    this.model =
-      this.config.get<string>('openai.model') ?? 'gpt-5.6-terra';
+    this.model = this.config.get<string>('openai.model') ?? 'gpt-5.6-terra';
   }
 
   getToolMaxIterations(): number {

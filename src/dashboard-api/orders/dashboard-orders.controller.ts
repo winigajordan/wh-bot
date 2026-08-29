@@ -58,10 +58,7 @@ export class DashboardOrdersController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
   ) {
-    const order = await this.ordersService.findForBusiness(
-      user.businessId,
-      id,
-    );
+    const order = await this.ordersService.findForBusiness(user.businessId, id);
     if (!order) {
       throw new NotFoundException('Commande introuvable');
     }
