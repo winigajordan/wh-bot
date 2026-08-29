@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { CartService } from '../cart/cart.service';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConversationSessionService } from '../../conversation/conversation-session.service';
+import type { SessionDeliveryInfo } from '../../conversation/session.types';
+import type { PendingInteractiveMessage } from '../../whatsapp-client/interactive-message.types';
+import { CartService, CartSummary } from '../cart/cart.service';
 import { DeliveryZonesService } from '../delivery-zones/delivery-zones.service';
 import { MenuService } from '../menu/menu.service';
 import { OrdersService } from '../orders/orders.service';
@@ -11,12 +14,26 @@ export type ToolExecutionContext = {
 
 @Injectable()
 export class RestaurantOrderingToolsService {
+  private readonly logger = new Logger(RestaurantOrderingToolsService.name);
+  private pendingInteractiveMessage: PendingInteractiveMessage | null = null;
+
   constructor(
     private readonly menuService: MenuService,
     private readonly cartService: CartService,
     private readonly deliveryZonesService: DeliveryZonesService,
     private readonly ordersService: OrdersService,
+    private readonly sessionService: ConversationSessionService,
   ) {}
+
+  resetTurn(): void {
+    this.pendingInteractiveMessage = null;
+  }
+
+  consumePendingInteractiveMessage(): PendingInteractiveMessage | null {
+    const payload = this.pendingInteractiveMessage;
+    this.pendingInteractiveMessage = null;
+    return payload;
+  }
 
   async execute(
     toolName: string,
@@ -50,9 +67,115 @@ export class RestaurantOrderingToolsService {
         return this.confirmOrder(context, input);
       case 'get_order_status':
         return this.getOrderStatus(context, input);
+      case 'ask_delivery_mode':
+        return this.askDeliveryMode();
+      case 'ask_order_confirmation':
+        return this.askOrderConfirmation(context);
       default:
         throw new Error(`Tool inconnu: ${toolName}`);
     }
+  }
+
+  private setPendingInteractiveMessage(
+    payload: PendingInteractiveMessage,
+  ): void {
+    if (this.pendingInteractiveMessage) {
+      this.logger.warn(
+        `Payload interactif écrasé (${this.pendingInteractiveMessage.type} → ${payload.type})`,
+      );
+    }
+    this.pendingInteractiveMessage = payload;
+  }
+
+  private askDeliveryMode(): { presented: true } {
+    this.setPendingInteractiveMessage({
+      type: 'buttons',
+      bodyText: 'Souhaitez-vous une livraison ou un retrait sur place ?',
+      buttons: [
+        { id: 'delivery_mode_delivery', title: 'Livraison' },
+        { id: 'delivery_mode_pickup', title: 'Retrait sur place' },
+      ],
+    });
+    return { presented: true };
+  }
+
+  private async askOrderConfirmation(
+    context: ToolExecutionContext,
+  ): Promise<{ presented: true } | { presented: false; reason: string }> {
+    const session = await this.sessionService.getSession(
+      context.businessId,
+      context.clientPhone,
+    );
+    const summary = await this.cartService.getCartSummary(
+      context.businessId,
+      context.clientPhone,
+    );
+
+    if (summary.item_count === 0) {
+      return { presented: false, reason: 'empty_cart' };
+    }
+
+    const bodyText = this.buildConfirmationBodyText(
+      summary,
+      session.delivery_info,
+    );
+
+    this.setPendingInteractiveMessage({
+      type: 'buttons',
+      bodyText,
+      buttons: [
+        { id: 'confirm_order_yes', title: 'Oui, je confirme' },
+        { id: 'confirm_order_no', title: 'Non, je modifie' },
+      ],
+    });
+
+    return { presented: true };
+  }
+
+  private buildConfirmationBodyText(
+    summary: CartSummary,
+    deliveryInfo: SessionDeliveryInfo | null,
+  ): string {
+    const lines = ['Récapitulatif de votre commande :', ''];
+
+    for (const item of summary.items) {
+      const options =
+        item.options.length > 0
+          ? ` (${item.options.map((option) => option.name).join(', ')})`
+          : '';
+      lines.push(
+        `${item.name}${options} x${item.quantity} — ${this.formatXof(item.price * item.quantity)}`,
+      );
+    }
+
+    lines.push('');
+    lines.push(`Sous-total : ${this.formatXof(summary.subtotal)}`);
+
+    if (deliveryInfo?.mode === 'delivery') {
+      lines.push(`Livraison : ${this.formatXof(summary.delivery_fee)}`);
+      if (deliveryInfo.zone_name || deliveryInfo.address_text) {
+        lines.push(
+          `Adresse : ${deliveryInfo.address_text ?? deliveryInfo.zone_name}`,
+        );
+      }
+    } else if (deliveryInfo?.mode === 'pickup') {
+      lines.push('Retrait sur place');
+    }
+
+    if (summary.order_note) {
+      lines.push(`Note : ${summary.order_note}`);
+    }
+
+    lines.push('');
+    lines.push(`Total : ${this.formatXof(summary.total)}`);
+    lines.push('');
+    lines.push('Confirmez-vous votre commande ?');
+
+    return lines.join('\n');
+  }
+
+  private formatXof(amount: number): string {
+    return this.menuService.formatXof(amount);
   }
 
   private async getMenu(
@@ -95,7 +218,6 @@ export class RestaurantOrderingToolsService {
         }));
     }
 
-    // Compat legacy (1 item plat)
     if (typeof input.item_id === 'string') {
       return [
         {
@@ -138,7 +260,30 @@ export class RestaurantOrderingToolsService {
 
   private async getDeliveryZones(businessId: string): Promise<unknown> {
     const zones = await this.deliveryZonesService.listZones(businessId);
+
+    if (zones.length > 0) {
+      this.setPendingInteractiveMessage({
+        type: 'list',
+        bodyText: 'Choisissez votre quartier — vous pourrez préciser l’adresse juste après :',
+        buttonLabel: 'Choisir',
+        rows: zones.map((zone, index) => ({
+          id: `zone_${index}_${this.slugify(zone.name)}`,
+          title: zone.name,
+          description: `Frais : ${this.formatXof(Number(zone.delivery_fee))}`,
+        })),
+      });
+    }
+
     return { zones };
+  }
+
+  private slugify(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 40);
   }
 
   private async setDeliveryInfo(

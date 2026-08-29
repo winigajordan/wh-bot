@@ -72,4 +72,56 @@ describe('parseIncomingTextMessages', () => {
   it('retourne [] si JSON invalide', () => {
     expect(parseIncomingTextMessages(Buffer.from('not-json'))).toEqual([]);
   });
+
+  it('extrait le title d’un button_reply', () => {
+    const payload = structuredClone(SAMPLE_TEXT_MESSAGE_PAYLOAD);
+    payload.entry[0].changes[0].value.messages = [
+      {
+        from: '221779876543',
+        id: 'wamid.button',
+        timestamp: '1700000001',
+        type: 'interactive',
+        interactive: {
+          type: 'button_reply',
+          button_reply: { id: 'delivery_mode_delivery', title: 'Livraison' },
+        },
+      },
+    ];
+
+    expect(parseIncomingTextMessages(Buffer.from(JSON.stringify(payload)))).toEqual([
+      {
+        phoneNumberId: '123456789012345',
+        from: '221779876543',
+        messageId: 'wamid.button',
+        text: 'Livraison',
+        timestamp: '1700000001',
+      },
+    ]);
+  });
+
+  it('extrait le title d’un list_reply', () => {
+    const payload = structuredClone(SAMPLE_TEXT_MESSAGE_PAYLOAD);
+    payload.entry[0].changes[0].value.messages = [
+      {
+        from: '221779876543',
+        id: 'wamid.list',
+        timestamp: '1700000002',
+        type: 'interactive',
+        interactive: {
+          type: 'list_reply',
+          list_reply: { id: 'zone_0_fass', title: 'Fass', description: 'Frais : 1 200 F' },
+        },
+      },
+    ];
+
+    expect(parseIncomingTextMessages(Buffer.from(JSON.stringify(payload)))).toEqual([
+      {
+        phoneNumberId: '123456789012345',
+        from: '221779876543',
+        messageId: 'wamid.list',
+        text: 'Fass',
+        timestamp: '1700000002',
+      },
+    ]);
+  });
 });

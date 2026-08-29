@@ -77,16 +77,16 @@ export class ConversationProcessor extends WorkerHost {
         );
       }
 
-      const reply = await this.orchestrator.processConversation(
+      const result = await this.orchestrator.processConversation(
         business,
         clientPhone,
       );
 
-      if (reply) {
-        await this.whatsappClient.sendTextMessage(
+      if (result.outbound) {
+        await this.whatsappClient.sendOutboundMessage(
           phoneNumberId,
           clientPhone,
-          reply,
+          result.outbound,
         );
       }
     } catch (error) {

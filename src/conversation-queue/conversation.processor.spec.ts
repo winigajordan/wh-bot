@@ -15,6 +15,7 @@ describe('ConversationProcessor', () => {
   const processConversation = jest.fn();
   const getSession = jest.fn();
   const sendTextMessage = jest.fn();
+  const sendOutboundMessage = jest.fn();
   const markAsReadWithTyping = jest.fn();
   const scheduleProcessing = jest.fn();
   const scheduleFollowUpProcessing = jest.fn();
@@ -47,7 +48,7 @@ describe('ConversationProcessor', () => {
         { provide: ConversationSessionService, useValue: { getSession } },
         {
           provide: WhatsappClientService,
-          useValue: { sendTextMessage, markAsReadWithTyping },
+          useValue: { sendTextMessage, sendOutboundMessage, markAsReadWithTyping },
         },
         {
           provide: ConversationDebounceService,
@@ -68,6 +69,7 @@ describe('ConversationProcessor', () => {
     processConversation.mockReset();
     getSession.mockReset();
     sendTextMessage.mockReset();
+    sendOutboundMessage.mockReset();
     markAsReadWithTyping.mockReset();
     scheduleProcessing.mockReset();
     scheduleFollowUpProcessing.mockReset();
@@ -76,7 +78,9 @@ describe('ConversationProcessor', () => {
     consumeFlag.mockReset();
 
     findById.mockResolvedValue(business);
-    processConversation.mockResolvedValue('Réponse bot');
+    processConversation.mockResolvedValue({
+      outbound: { type: 'text', body: 'Réponse bot' },
+    });
     getSession.mockResolvedValue({
       messages: [{ role: 'user', content: 'Salut' }],
       last_whatsapp_message_id: 'wamid.test',
@@ -84,7 +88,7 @@ describe('ConversationProcessor', () => {
     tryAcquireLock.mockResolvedValue(true);
     releaseLock.mockResolvedValue(undefined);
     consumeFlag.mockResolvedValue(false);
-    sendTextMessage.mockResolvedValue(undefined);
+    sendOutboundMessage.mockResolvedValue(undefined);
     markAsReadWithTyping.mockResolvedValue(undefined);
     scheduleProcessing.mockResolvedValue(undefined);
     scheduleFollowUpProcessing.mockResolvedValue(undefined);
@@ -106,10 +110,10 @@ describe('ConversationProcessor', () => {
     await processor.process({ data: payload } as never);
 
     expect(processConversation).toHaveBeenCalledWith(business, '221779876543');
-    expect(sendTextMessage).toHaveBeenCalledWith(
+    expect(sendOutboundMessage).toHaveBeenCalledWith(
       'phone-1',
       '221779876543',
-      'Réponse bot',
+      { type: 'text', body: 'Réponse bot' },
     );
     expect(releaseLock).toHaveBeenCalled();
   });
@@ -152,6 +156,28 @@ describe('ConversationProcessor', () => {
 
     expect(scheduleFollowUpProcessing).toHaveBeenCalledWith(payload);
     expect(scheduleProcessing).not.toHaveBeenCalled();
+  });
+
+  it('envoie un message interactif si l’orchestrateur le demande', async () => {
+    processConversation.mockResolvedValue({
+      outbound: {
+        type: 'buttons',
+        bodyText: 'Confirmez-vous ?',
+        buttons: [
+          { id: 'confirm_order_yes', title: 'Oui, je confirme' },
+          { id: 'confirm_order_no', title: 'Non, je modifie' },
+        ],
+      },
+    });
+
+    await processor.process({ data: payload } as never);
+
+    expect(sendOutboundMessage).toHaveBeenCalledWith(
+      'phone-1',
+      '221779876543',
+      expect.objectContaining({ type: 'buttons' }),
+    );
+    expect(sendTextMessage).not.toHaveBeenCalled();
   });
 
   it('reprogramme si le verrou est déjà pris', async () => {

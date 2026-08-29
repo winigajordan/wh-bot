@@ -300,8 +300,8 @@ describe('ClaudeService', () => {
         input_schema: { type: 'object', properties: {} },
       },
       {
-        name: 'get_order_status',
-        description: 'Status',
+        name: 'ask_order_confirmation',
+        description: 'Confirm',
         input_schema: { type: 'object', properties: {} },
       },
     ];
@@ -337,7 +337,7 @@ describe('ClaudeService', () => {
           tools: [
             expect.objectContaining({ name: 'get_menu' }),
             expect.objectContaining({
-              name: 'get_order_status',
+              name: 'ask_order_confirmation',
               cache_control: { type: 'ephemeral' },
             }),
           ],

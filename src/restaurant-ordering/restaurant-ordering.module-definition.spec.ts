@@ -42,7 +42,10 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(prompt).toMatch(/tu veux voir quoi en premier/i);
     expect(prompt).toMatch(/vous voulez voir les grillades ou les sandwichs/i);
     expect(prompt).toMatch(/phrase descriptive/i);
-    expect(prompt).toMatch(/Exemple MAUVAIS \(liste\)/i);
+    expect(prompt).toMatch(/bienvenue chez/i);
+    expect(prompt).toMatch(/assistant virtuel du restaurant/i);
+    expect(prompt).toMatch(/flux en 2 temps/i);
+    expect(prompt).toMatch(/complément d’adresse/i);
   });
 
   it('donne un exemple descriptif et interdit la liste de noms', () => {
@@ -60,7 +63,7 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(restaurantOrderingModuleDefinition.getTools()).toEqual(
       ORDERING_TOOLS,
     );
-    expect(restaurantOrderingModuleDefinition.getTools()).toHaveLength(10);
+    expect(restaurantOrderingModuleDefinition.getTools()).toHaveLength(12);
   });
 
   it('garde un ordre figé des tools (breakpoint cache = dernier)', () => {
@@ -76,8 +79,10 @@ describe('restaurantOrderingModuleDefinition', () => {
       'set_order_note',
       'confirm_order',
       'get_order_status',
+      'ask_delivery_mode',
+      'ask_order_confirmation',
     ]);
-    expect(tools.at(-1)?.name).toBe('get_order_status');
+    expect(tools.at(-1)?.name).toBe('ask_order_confirmation');
     // Même référence / même contenu à chaque appel — pas de tri dynamique
     expect(restaurantOrderingModuleDefinition.getTools()).toBe(ORDERING_TOOLS);
     expect(restaurantOrderingModuleDefinition.getTools()).toEqual(
