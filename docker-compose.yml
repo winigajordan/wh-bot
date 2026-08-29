@@ -3,12 +3,18 @@ services:
     image: redis:7-alpine
     container_name: wh-bot-redis
     restart: unless-stopped
-    # Bind localhost only — never expose Redis on 0.0.0.0 (VPS public IP).
-    ports:
-      - "127.0.0.1:6379:6379"
+    # PM2 tourne sur l'hôte : host network évite docker-proxy (ECONNREFUSED/RESET).
+    # bind 127.0.0.1 = pas d'exposition Internet.
+    network_mode: host
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes --timeout 0 --tcp-keepalive 60
+    command: >-
+      redis-server
+      --appendonly yes
+      --timeout 0
+      --tcp-keepalive 60
+      --bind 127.0.0.1
+      --protected-mode yes
 
 volumes:
   redis-data:
