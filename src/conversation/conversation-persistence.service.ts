@@ -58,6 +58,10 @@ export class ConversationPersistenceService {
 
       conversation.lastMessageAt = new Date();
       await this.conversations.save(conversation);
+
+      this.logger.log(
+        `Persist OK business=${businessId} conversation=${conversation.id} role=${role}`,
+      );
     } catch (error) {
       this.logger.error(
         `Persist message échoué business=${businessId} role=${role}`,
