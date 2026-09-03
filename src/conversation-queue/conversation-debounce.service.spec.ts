@@ -99,6 +99,23 @@ describe('ConversationDebounceService', () => {
     );
   });
 
+  it('retire un job failed avant d’en reprogrammer un', async () => {
+    getJob.mockResolvedValue({ getState, remove });
+    getState.mockResolvedValue('failed');
+
+    await service.scheduleProcessing(payload);
+
+    expect(remove).toHaveBeenCalled();
+    expect(add).toHaveBeenCalledWith(
+      CONVERSATION_PROCESS_JOB,
+      payload,
+      expect.objectContaining({
+        jobId: 'biz-1__221779876543',
+        delay: 2500,
+      }),
+    );
+  });
+
   it('programme un job follow-up avec un jobId distinct', async () => {
     getJob.mockResolvedValue(null);
 

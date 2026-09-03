@@ -7,6 +7,7 @@ import type {
 } from './interactive-message.types';
 
 const GRAPH_API_VERSION = 'v21.0';
+const GRAPH_FETCH_TIMEOUT_MS = 12_000;
 const BUTTON_TITLE_MAX = 20;
 const LIST_ROW_TITLE_MAX = 24;
 const LIST_ROW_DESCRIPTION_MAX = 72;
@@ -182,25 +183,17 @@ export class WhatsappClientService {
 
     const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const response = await this.postGraph(
+      url,
+      {
         messaging_product: 'whatsapp',
         status: 'read',
         message_id: messageId,
         typing_indicator: { type: 'text' },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      this.logger.error(
-        `Read/typing API échec (${response.status}) phone_number_id=${phoneNumberId} message_id=${messageId}: ${errorBody}`,
-      );
+      },
+      `Read/typing phone_number_id=${phoneNumberId} message_id=${messageId}`,
+    );
+    if (!response) {
       return;
     }
 
@@ -225,23 +218,49 @@ export class WhatsappClientService {
 
     const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      this.logger.error(
-        `Send API échec (${response.status}) phone_number_id=${phoneNumberId} to=${to}: ${errorBody}`,
-      );
+    const response = await this.postGraph(
+      url,
+      payload,
+      `Send API phone_number_id=${phoneNumberId} to=${to}`,
+    );
+    if (!response) {
       return;
     }
 
     this.logger.log(`Send API OK → ${to} via phone_number_id=${phoneNumberId}`);
+  }
+
+  private async postGraph(
+    url: string,
+    payload: Record<string, unknown>,
+    context: string,
+  ): Promise<Response | null> {
+    const accessToken = this.config.get<string>('whatsapp.accessToken') ?? '';
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(GRAPH_FETCH_TIMEOUT_MS),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        this.logger.error(
+          `${context} échec (${response.status}): ${errorBody}`,
+        );
+        return null;
+      }
+
+      return response;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`${context} fetch échoué : ${message}`);
+      return null;
+    }
   }
 }

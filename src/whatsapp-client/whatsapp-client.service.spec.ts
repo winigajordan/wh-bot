@@ -78,6 +78,14 @@ describe('WhatsappClientService', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('ne lève pas si le fetch Graph échoue (réseau)', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+
+    await expect(
+      service.sendTextMessage('123456789', '221771234567', 'test'),
+    ).resolves.toBeUndefined();
+  });
+
   it('appelle read + typing indicator', async () => {
     fetchMock.mockResolvedValue({
       ok: true,

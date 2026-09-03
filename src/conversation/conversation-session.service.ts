@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
+import { ConversationPersistenceService } from './conversation-persistence.service';
 import {
   buildSessionKey,
   ConversationSession,
@@ -11,7 +12,10 @@ import {
 export class ConversationSessionService {
   private readonly logger = new Logger(ConversationSessionService.name);
 
-  constructor(private readonly redis: RedisService) {}
+  constructor(
+    private readonly redis: RedisService,
+    private readonly persistence: ConversationPersistenceService,
+  ) {}
 
   async getSession(
     businessId: string,
@@ -66,6 +70,8 @@ export class ConversationSessionService {
     await this.redis.setSession(key, session, SESSION_TTL_SECONDS);
     this.logger.log(`Écriture session Redis OK clé=${key}`);
 
+    this.schedulePersist(businessId, clientPhone, 'assistant', content);
+
     return session;
   }
 
@@ -104,7 +110,23 @@ export class ConversationSessionService {
     await this.redis.setSession(key, session, SESSION_TTL_SECONDS);
     this.logger.log(`Écriture session Redis OK clé=${key}`);
 
+    this.schedulePersist(businessId, clientPhone, role, content);
+
     return session;
+  }
+
+  private schedulePersist(
+    businessId: string,
+    clientPhone: string,
+    role: 'user' | 'assistant',
+    content: string,
+  ): void {
+    void this.persistence.persistMessage(
+      businessId,
+      clientPhone,
+      role,
+      content,
+    );
   }
 
   private parseSession(raw: object | null): ConversationSession {

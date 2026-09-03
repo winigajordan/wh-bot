@@ -34,10 +34,7 @@ export class ConversationDebounceService {
     const existing = await this.queue.getJob(jobId);
     if (existing) {
       const state = await existing.getState();
-      if (state === 'delayed' || state === 'waiting') {
-        await existing.remove();
-        this.logger.debug(`Debounce reprogrammé pour ${jobId}`);
-      } else if (state === 'active') {
+      if (state === 'active') {
         const followUpKey = buildConversationFollowUpKey(
           payload.businessId,
           payload.clientPhone,
@@ -51,6 +48,9 @@ export class ConversationDebounceService {
         );
         return;
       }
+
+      await existing.remove();
+      this.logger.debug(`Debounce reprogrammé pour ${jobId} (état=${state})`);
     }
 
     await this.queue.add(CONVERSATION_PROCESS_JOB, payload, {

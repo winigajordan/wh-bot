@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RedisService } from '../redis/redis.service';
+import { ConversationPersistenceService } from './conversation-persistence.service';
 import { ConversationSessionService } from './conversation-session.service';
 import { SESSION_TTL_SECONDS } from './session.types';
 
@@ -7,10 +8,13 @@ describe('ConversationSessionService', () => {
   let service: ConversationSessionService;
   const getSession = jest.fn();
   const setSession = jest.fn();
+  const persistMessage = jest.fn();
 
   beforeEach(async () => {
     getSession.mockReset();
     setSession.mockReset();
+    persistMessage.mockReset();
+    persistMessage.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -18,6 +22,10 @@ describe('ConversationSessionService', () => {
         {
           provide: RedisService,
           useValue: { getSession, setSession },
+        },
+        {
+          provide: ConversationPersistenceService,
+          useValue: { persistMessage },
         },
       ],
     }).compile();
@@ -43,6 +51,12 @@ describe('ConversationSessionService', () => {
         messages: [{ role: 'user', content: 'Bonjour' }],
       }),
       SESSION_TTL_SECONDS,
+    );
+    expect(persistMessage).toHaveBeenCalledWith(
+      'biz-1',
+      '221779876543',
+      'user',
+      'Bonjour',
     );
   });
 
@@ -119,6 +133,12 @@ describe('ConversationSessionService', () => {
         ],
       }),
       SESSION_TTL_SECONDS,
+    );
+    expect(persistMessage).toHaveBeenCalledWith(
+      'biz-1',
+      '221779876543',
+      'assistant',
+      'Je vous écoute.',
     );
   });
 

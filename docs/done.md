@@ -9,6 +9,43 @@ Format d’un bloc :
 
 ##########
 
+## Persist messages Postgres — archive async V1
+
+Date : 3 septembre 2026, 04:07
+
+### Comportement
+
+- Après chaque `appendUserMessage` / `appendAssistantMessage` Redis, archive fire-and-forget en Postgres
+- `findOrCreate` conversation `active` par `(business_id, client_phone)` ; insert `messages` (`tool_calls = null`)
+- Échec Postgres loggé, jamais propagé (chemin WhatsApp inchangé)
+- Index unique partiel `UQ_conversations_business_phone_active` + retry sur course 23505
+- **Stockage en clair** : `messages.content` (`text`) et `conversations.client_phone` sans chiffrement applicatif (V1 archive / debug)
+
+### Fichiers
+
+- `src/conversation/conversation-persistence.service.ts` (+ spec)
+- `src/conversation/conversation-session.service.ts` (+ spec)
+- `src/conversation/conversation.module.ts`
+- `src/conversation/entities/message.entity.ts` — `content` text nullable
+- `src/database/migrations/1787003000000-AddActiveConversationUniqueIndex.ts`
+- `docs/avancement.md`
+
+### Non fait (volontaire)
+
+- Restore historique Redis depuis Postgres après TTL
+- API / UI dashboard conversations
+- Persist des `tool_calls` bruts
+- Fermeture / réouverture de conversations (`closed`)
+- Chiffrement au repos (AES applicatif, `pgcrypto`, disque chiffré)
+
+### Validation
+
+- Tests `conversation-persistence` + `conversation-session` verts
+- Suite complète : 154 tests verts
+- `npm run migration:run` — index unique appliqué
+
+##########
+
 ## Fix GPT — astérisques visibles + fluidité v2
 
 Date : 28 août 2026, 02:35

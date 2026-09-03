@@ -4,7 +4,7 @@ Suivi de ce qui est fait et de ce qui reste. Photo de l’architecture : [etat-a
 
 Tout le code backend vit dans `whatsapp-bot/`. Frontend dashboard : `wini-food/` (Angular 20).
 
-Dernière mise à jour : 27 août 2026.
+Dernière mise à jour : 3 septembre 2026.
 
 ---
 
@@ -72,7 +72,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 
 ### Reporté volontairement (ne pas oublier)
 
-- **Persist Postgres `conversations` / `messages`** — reporté le 22 août 2026. Redis suffit pour le bot en temps réel ; l’archive Postgres servira surtout au dashboard (Phase 5) et au debug en pilote. Tables déjà en schéma, jamais alimentées. **Reprendre avant dashboard ou pilote restos réels.**
+- ~~**Persist Postgres `conversations` / `messages`**~~ — **fait** (3 sept. 2026) : archive async V1, Redis reste live. Restore session / UI dashboard conversations / tool_calls : plus tard.
 
 ---
 
@@ -84,7 +84,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 
 ### Phase 2 — clôture (reste optionnel)
 
-- [ ] Persist Postgres `conversations` / `messages` → **reporté** (voir ci-dessus)
+- [x] Persist Postgres `conversations` / `messages` (archive async V1)
 - [ ] Bout-en-bout WhatsApp → Claude → WhatsApp (validation avec vrais IDs Meta)
 
 ### Phase 3 — Menu (sous `restaurant-ordering`) — cœur fait
@@ -140,5 +140,5 @@ Voir specs §13. Pas de 2e module métier (`salon`, banque, école) pour le POC 
 **0 → 1 → 2** : fait.  
 **3 et 4** : cœur fait. **Stabilisation bot** : validée.  
 **5** : cœur fait (menu upload/review inclus).  
-**Persist messages** : avant pilote restos réels.  
+**Persist messages** : archive async V1 faite (3 sept. 2026). Restore Redis / UI conversations : plus tard.  
 **6** : prochaine étape (notifs WhatsApp statut).
