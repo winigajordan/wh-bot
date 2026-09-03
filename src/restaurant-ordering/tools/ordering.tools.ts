@@ -105,7 +105,7 @@ export const SET_DELIVERY_INFO_TOOL: ClaudeToolDefinition = {
 export const SET_ORDER_NOTE_TOOL: ClaudeToolDefinition = {
   name: 'set_order_note',
   description:
-    'Enregistre une note pour la commande si le client en fournit une (allergies, instructions cuisine, etc.).',
+    'Enregistre une note pour la commande (allergies, instructions cuisine, etc.). Appeler quand le client fournit une note, après la question note obligatoire et avant ask_order_confirmation.',
   input_schema: {
     type: 'object',
     properties: {

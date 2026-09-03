@@ -9,6 +9,73 @@ Format d’un bloc :
 
 ##########
 
+## Flow note commande — étape obligatoire avant récap
+
+Date : 3 septembre 2026, 05:00
+
+### Comportement
+
+- Le prompt imposait une note « non bloquante » dans le même message que le récap → le bot skippait la question
+- Nouvelle règle métier : après `set_delivery_info` / retrait, poser une question note **séparée** avant `ask_order_confirmation`
+- Interdit `set_delivery_info` + récap/confirm dans le même tour
+- Exemple few-shot GPT + description tool `set_order_note` alignés
+
+### Fichiers
+
+- `src/restaurant-ordering/restaurant-ordering.module-definition.ts` (+ spec)
+- `src/restaurant-ordering/tools/ordering.tools.ts`
+
+### Non fait (volontaire)
+
+- Boutons WhatsApp dédiés « Avec note / Sans note »
+- Changement de logique tools côté Nest (toujours piloté par le prompt)
+
+### Validation
+
+- Spec module-definition : assert étape OBLIGATOIRE note
+
+##########
+
+## Chiffrement au repos — conversations / messages
+
+Date : 3 septembre 2026, 04:43
+
+### Comportement
+
+- AES-256-GCM applicatif avant écriture Postgres (master key `MESSAGE_ENCRYPTION_KEY`, HKDF → clé AES + HMAC téléphone)
+- `conversations` : `client_phone_hash` + `client_phone_encrypted` (plus de `client_phone` clair)
+- `messages` : `content_encrypted` (plus de `content` clair)
+- Persist fail-closed si clé absente (dev : warn + skip ; prod : throw au boot)
+- Format payload : `version|iv|ciphertext|tag` en base64
+- Front Angular inchangé ; Redis inchangé ; archive test pré-migration purgée
+
+### Fichiers
+
+- `docs/chiffrement-au-repos-conversations.md` (plan)
+- `src/crypto/field-encryption.util.ts` (+ spec)
+- `src/crypto/field-encryption.service.ts` (+ spec)
+- `src/crypto/crypto.module.ts`
+- `src/config/configuration.ts`, `src/app.module.ts`
+- `src/conversation/entities/conversation.entity.ts`, `message.entity.ts`
+- `src/conversation/conversation-persistence.service.ts` (+ spec)
+- `src/database/migrations/1787003100000-EncryptConversationFields.ts`
+- `.env.example` (+ clé générée localement dans `.env`, non commitée)
+
+### Non fait (volontaire)
+
+- Chiffrement Redis / E2E navigateur / KMS
+- Chiffrement `orders.client_phone`
+- Backfill des anciennes lignes (drop OK)
+- Endpoint dashboard qui déchiffre pour affichage
+- HTTPS prod (infra)
+
+### Validation
+
+- `npm test` — 165 verts
+- `npm run migration:run` — EncryptConversationFields OK
+
+##########
+
 ## Persist messages Postgres — archive async V1
 
 Date : 3 septembre 2026, 04:07

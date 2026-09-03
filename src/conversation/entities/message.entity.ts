@@ -25,8 +25,9 @@ export class Message {
   @Column()
   role!: MessageRole;
 
-  @Column({ type: 'text', nullable: true })
-  content!: string | null;
+  /** AES-256-GCM du texte ; null si contenu vide */
+  @Column({ name: 'content_encrypted', type: 'text', nullable: true })
+  contentEncrypted!: string | null;
 
   @Column({ name: 'tool_calls', type: 'jsonb', nullable: true })
   toolCalls!: unknown;

@@ -8,6 +8,7 @@ import { BusinessesModule } from './businesses/businesses.module';
 import configuration from './config/configuration';
 import { ConversationModule } from './conversation/conversation.module';
 import { ConversationQueueModule } from './conversation-queue/conversation-queue.module';
+import { CryptoModule } from './crypto/crypto.module';
 import { DashboardApiModule } from './dashboard-api/dashboard-api.module';
 import { DatabaseModule } from './database/database.module';
 import { ModuleRegistryModule } from './module-registry/module-registry.module';
@@ -24,6 +25,7 @@ import { WhatsappClientModule } from './whatsapp-client/whatsapp-client.module';
       load: [configuration],
     }),
     EventEmitterModule.forRoot(),
+    CryptoModule,
     RedisModule,
     DatabaseModule,
     BusinessesModule,

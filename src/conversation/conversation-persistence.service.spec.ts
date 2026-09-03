@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { QueryFailedError } from 'typeorm';
+import { FieldEncryptionService } from '../crypto/field-encryption.service';
 import { ConversationPersistenceService } from './conversation-persistence.service';
 import { Conversation } from './entities/conversation.entity';
 import { Message } from './entities/message.entity';
@@ -17,6 +18,9 @@ describe('ConversationPersistenceService', () => {
     (value: Partial<Message>) => value as Message,
   );
   const messagesSave = jest.fn();
+  const hashPhone = jest.fn().mockReturnValue('hash-221700000000');
+  const encrypt = jest.fn((value: string) => `enc:${value}`);
+  const isReady = jest.fn().mockReturnValue(true);
 
   beforeEach(async () => {
     conversationsFindOne.mockReset();
@@ -24,6 +28,9 @@ describe('ConversationPersistenceService', () => {
     conversationsSave.mockReset();
     messagesCreate.mockClear();
     messagesSave.mockReset();
+    hashPhone.mockClear().mockReturnValue('hash-221700000000');
+    encrypt.mockClear().mockImplementation((value: string) => `enc:${value}`);
+    isReady.mockReset().mockReturnValue(true);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -43,17 +50,22 @@ describe('ConversationPersistenceService', () => {
             save: messagesSave,
           },
         },
+        {
+          provide: FieldEncryptionService,
+          useValue: { hashPhone, encrypt, isReady },
+        },
       ],
     }).compile();
 
     service = module.get(ConversationPersistenceService);
   });
 
-  it('réutilise une conversation active et y ajoute le message', async () => {
+  it('réutilise une conversation active et y ajoute le message chiffré', async () => {
     const conversation = {
       id: 'conv-1',
       businessId: 'biz-1',
-      clientPhone: '221700000000',
+      clientPhoneHash: 'hash-221700000000',
+      clientPhoneEncrypted: 'enc:221700000000',
       status: 'active',
       lastMessageAt: new Date('2026-01-01T00:00:00.000Z'),
     } as Conversation;
@@ -72,7 +84,7 @@ describe('ConversationPersistenceService', () => {
     expect(conversationsFindOne).toHaveBeenCalledWith({
       where: {
         businessId: 'biz-1',
-        clientPhone: '221700000000',
+        clientPhoneHash: 'hash-221700000000',
         status: 'active',
       },
       order: { lastMessageAt: 'DESC' },
@@ -81,24 +93,22 @@ describe('ConversationPersistenceService', () => {
       expect.objectContaining({
         conversationId: 'conv-1',
         role: 'user',
-        content: 'Bonjour',
+        contentEncrypted: 'enc:Bonjour',
         toolCalls: null,
       }),
     );
-    expect(conversationsSave).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'conv-1',
-        lastMessageAt: expect.any(Date),
-      }),
+    expect(messagesSave).not.toHaveBeenCalledWith(
+      expect.objectContaining({ content: 'Bonjour' }),
     );
   });
 
-  it('crée une conversation si aucune active', async () => {
+  it('crée une conversation chiffrée si aucune active', async () => {
     conversationsFindOne.mockResolvedValue(null);
     conversationsSave.mockResolvedValue({
       id: 'conv-new',
       businessId: 'biz-1',
-      clientPhone: '221700000000',
+      clientPhoneHash: 'hash-221700000000',
+      clientPhoneEncrypted: 'enc:221700000000',
       status: 'active',
     } as Conversation);
     messagesSave.mockImplementation(async (value) => value);
@@ -113,7 +123,8 @@ describe('ConversationPersistenceService', () => {
     expect(conversationsCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         businessId: 'biz-1',
-        clientPhone: '221700000000',
+        clientPhoneHash: 'hash-221700000000',
+        clientPhoneEncrypted: 'enc:221700000000',
         status: 'active',
       }),
     );
@@ -121,7 +132,7 @@ describe('ConversationPersistenceService', () => {
       expect.objectContaining({
         conversationId: 'conv-new',
         role: 'assistant',
-        content: 'Je vous écoute',
+        contentEncrypted: 'enc:Je vous écoute',
       }),
     );
   });
@@ -130,7 +141,7 @@ describe('ConversationPersistenceService', () => {
     const raced = {
       id: 'conv-raced',
       businessId: 'biz-1',
-      clientPhone: '221700000000',
+      clientPhoneHash: 'hash-221700000000',
       status: 'active',
     } as Conversation;
 
@@ -139,8 +150,9 @@ describe('ConversationPersistenceService', () => {
       .mockResolvedValueOnce(raced);
 
     const uniqueError = new QueryFailedError('INSERT', [], new Error('dup'));
-    (uniqueError as QueryFailedError & { driverError: { code: string } }).driverError =
-      { code: '23505' };
+    (
+      uniqueError as QueryFailedError & { driverError: { code: string } }
+    ).driverError = { code: '23505' };
 
     conversationsSave
       .mockRejectedValueOnce(uniqueError)
@@ -165,5 +177,19 @@ describe('ConversationPersistenceService', () => {
     await expect(
       service.persistMessage('biz-1', '221700000000', 'user', 'x'),
     ).resolves.toBeUndefined();
+  });
+
+  it('n’écrit rien si le chiffrement n’est pas prêt (fail closed)', async () => {
+    isReady.mockReturnValue(false);
+
+    await service.persistMessage(
+      'biz-1',
+      '221700000000',
+      'user',
+      'Bonjour',
+    );
+
+    expect(messagesSave).not.toHaveBeenCalled();
+    expect(conversationsSave).not.toHaveBeenCalled();
   });
 });

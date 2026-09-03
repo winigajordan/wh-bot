@@ -22,8 +22,13 @@ export class Conversation {
   @JoinColumn({ name: 'business_id' })
   business!: Business;
 
-  @Column({ name: 'client_phone' })
-  clientPhone!: string;
+  /** HMAC-SHA256 hex du numéro — lookup sans stocker le clair */
+  @Column({ name: 'client_phone_hash' })
+  clientPhoneHash!: string;
+
+  /** AES-256-GCM du numéro E.164 */
+  @Column({ name: 'client_phone_encrypted', type: 'text' })
+  clientPhoneEncrypted!: string;
 
   @Column({ type: 'varchar', default: 'active' })
   status!: ConversationStatus;

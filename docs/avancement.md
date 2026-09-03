@@ -72,7 +72,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 
 ### Reporté volontairement (ne pas oublier)
 
-- ~~**Persist Postgres `conversations` / `messages`**~~ — **fait** (3 sept. 2026) : archive async V1, Redis reste live. Restore session / UI dashboard conversations / tool_calls : plus tard.
+- ~~**Persist Postgres `conversations` / `messages`**~~ — **fait** (3 sept. 2026) : archive async V1, Redis reste live. **Chiffrement au repos AES** fait (même date) — voir [chiffrement-au-repos-conversations.md](./chiffrement-au-repos-conversations.md). Restore session / UI dashboard conversations : plus tard.
 
 ---
 
@@ -84,7 +84,7 @@ Checklist : [test-manuel-bot.md](./test-manuel-bot.md) — **tous les scénarios
 
 ### Phase 2 — clôture (reste optionnel)
 
-- [x] Persist Postgres `conversations` / `messages` (archive async V1)
+- [x] Persist Postgres `conversations` / `messages` (archive async V1 + chiffrement au repos AES)
 - [ ] Bout-en-bout WhatsApp → Claude → WhatsApp (validation avec vrais IDs Meta)
 
 ### Phase 3 — Menu (sous `restaurant-ordering`) — cœur fait

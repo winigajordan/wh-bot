@@ -47,6 +47,9 @@ describe('restaurantOrderingModuleDefinition', () => {
     expect(prompt).toMatch(/assistant virtuel du restaurant/i);
     expect(prompt).toMatch(/flux en 2 temps/i);
     expect(prompt).toMatch(/complément d’adresse/i);
+    expect(prompt).toMatch(/Note de commande — étape OBLIGATOIRE/i);
+    expect(prompt).toMatch(/AVANT ask_order_confirmation/i);
+    expect(prompt).not.toMatch(/pas une question bloquante séparée/i);
   });
 
   it('donne un exemple descriptif et interdit la liste de noms', () => {

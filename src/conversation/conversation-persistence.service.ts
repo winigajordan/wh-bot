@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
+import { FieldEncryptionService } from '../crypto/field-encryption.service';
 import { Conversation } from './entities/conversation.entity';
 import { Message, type MessageRole } from './entities/message.entity';
 
@@ -15,11 +16,12 @@ export class ConversationPersistenceService {
     private readonly conversations: Repository<Conversation>,
     @InjectRepository(Message)
     private readonly messages: Repository<Message>,
+    private readonly encryption: FieldEncryptionService,
   ) {}
 
   /**
-   * Archive un message en Postgres. Ne propage jamais d’erreur
-   * (Redis reste la source live du bot).
+   * Archive un message en Postgres (contenu + téléphone chiffrés).
+   * Ne propage jamais d’erreur (Redis reste la source live du bot).
    */
   async persistMessage(
     businessId: string,
@@ -28,16 +30,28 @@ export class ConversationPersistenceService {
     content: string,
   ): Promise<void> {
     try {
+      if (!this.encryption.isReady()) {
+        this.logger.warn(
+          `Persist ignoré (chiffrement non prêt) business=${businessId} role=${role}`,
+        );
+        return;
+      }
+
+      const phoneHash = this.encryption.hashPhone(clientPhone);
       const conversation = await this.ensureActiveConversation(
         businessId,
         clientPhone,
+        phoneHash,
       );
+
+      const contentEncrypted =
+        content.length > 0 ? this.encryption.encrypt(content) : null;
 
       await this.messages.save(
         this.messages.create({
           conversationId: conversation.id,
           role,
-          content,
+          contentEncrypted,
           toolCalls: null,
         }),
       );
@@ -46,7 +60,7 @@ export class ConversationPersistenceService {
       await this.conversations.save(conversation);
     } catch (error) {
       this.logger.error(
-        `Persist message échoué business=${businessId} phone=${clientPhone} role=${role}`,
+        `Persist message échoué business=${businessId} role=${role}`,
         error instanceof Error ? error.stack : undefined,
       );
     }
@@ -55,11 +69,9 @@ export class ConversationPersistenceService {
   async ensureActiveConversation(
     businessId: string,
     clientPhone: string,
+    phoneHash = this.encryption.hashPhone(clientPhone),
   ): Promise<Conversation> {
-    const existing = await this.findActiveConversation(
-      businessId,
-      clientPhone,
-    );
+    const existing = await this.findActiveConversation(businessId, phoneHash);
     if (existing) {
       return existing;
     }
@@ -68,17 +80,15 @@ export class ConversationPersistenceService {
       return await this.conversations.save(
         this.conversations.create({
           businessId,
-          clientPhone,
+          clientPhoneHash: phoneHash,
+          clientPhoneEncrypted: this.encryption.encrypt(clientPhone),
           status: 'active',
           lastMessageAt: new Date(),
         }),
       );
     } catch (error) {
       if (this.isUniqueViolation(error)) {
-        const raced = await this.findActiveConversation(
-          businessId,
-          clientPhone,
-        );
+        const raced = await this.findActiveConversation(businessId, phoneHash);
         if (raced) {
           return raced;
         }
@@ -89,10 +99,10 @@ export class ConversationPersistenceService {
 
   private findActiveConversation(
     businessId: string,
-    clientPhone: string,
+    clientPhoneHash: string,
   ): Promise<Conversation | null> {
     return this.conversations.findOne({
-      where: { businessId, clientPhone, status: 'active' },
+      where: { businessId, clientPhoneHash, status: 'active' },
       order: { lastMessageAt: 'DESC' },
     });
   }

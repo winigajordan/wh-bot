@@ -58,4 +58,8 @@ export default () => ({
     secret: process.env.JWT_SECRET || 'dev-insecure-secret-change-me',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
+  encryption: {
+    /** 32 bytes base64 — AES-256 master key (HKDF → aes + phone hmac) */
+    messageKeyBase64: process.env.MESSAGE_ENCRYPTION_KEY || '',
+  },
 });
